@@ -1,0 +1,88 @@
+# ---------------------------------------------------------------------------
+# Skills dictionary. Maps surface forms found in job descriptions onto a
+# canonical term so "PyTorch", "torch" and "Py Torch" collapse to one entry.
+# This file is meant to grow -- every JD you run through the system is a
+# chance to add a synonym it missed.
+#
+# category: hard_skill | tool | method | domain | soft_skill
+# ---------------------------------------------------------------------------
+
+terms:
+  - canonical: Python
+    category: hard_skill
+    synonyms: [python3, "python 3", cpython]
+
+  - canonical: TypeScript
+    category: hard_skill
+    synonyms: [ts, "type script"]
+
+  - canonical: PyTorch
+    category: tool
+    synonyms: [torch, "py torch", pytorch-lightning, "pytorch lightning"]
+
+  - canonical: FastAPI
+    category: tool
+    synonyms: ["fast api"]
+
+  - canonical: React
+    category: tool
+    synonyms: [reactjs, "react.js", "react js"]
+
+  - canonical: Docker
+    category: tool
+    synonyms: [containerisation, containerization, containers, dockerfile]
+
+  - canonical: Kubernetes
+    category: tool
+    synonyms: [k8s, kubectl, "container orchestration"]
+
+  - canonical: PostgreSQL
+    category: tool
+    synonyms: [postgres, psql]
+
+  - canonical: CI/CD
+    category: method
+    synonyms: ["continuous integration", "continuous delivery", "continuous deployment",
+               "github actions", "gitlab ci", jenkins, "build pipelines"]
+
+  - canonical: LLM evaluation
+    category: method
+    synonyms: ["model evals", "model evaluation", "llm evals", "eval harness",
+               "benchmarking llms", "offline evaluation"]
+
+  - canonical: Retrieval-Augmented Generation
+    category: method
+    synonyms: [rag, "retrieval augmented generation", "vector search",
+               "semantic search", "embedding search"]
+
+  - canonical: Prompt engineering
+    category: method
+    synonyms: ["prompt design", "prompting", "few-shot prompting"]
+
+  - canonical: Distributed systems
+    category: domain
+    synonyms: ["distributed computing", "microservices", "service mesh"]
+
+  - canonical: MLOps
+    category: domain
+    synonyms: ["ml ops", "ml infrastructure", "model deployment", "model serving"]
+
+  - canonical: Stakeholder communication
+    category: soft_skill
+    synonyms: ["stakeholder management", "cross-functional collaboration",
+               "working with stakeholders", "communicating with non-technical"]
+
+  - canonical: Mentoring
+    category: soft_skill
+    synonyms: [mentorship, coaching, "onboarding juniors", "technical leadership"]
+
+# Terms that look like skills but are boilerplate noise. Dropped before ranking.
+stoplist:
+  - "team player"
+  - "fast-paced environment"
+  - "self-starter"
+  - "wear many hats"
+  - "rock star"
+  - "ninja"
+  - "competitive salary"
+  - "equal opportunity employer"

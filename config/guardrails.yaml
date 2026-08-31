@@ -1,0 +1,36 @@
+# ---------------------------------------------------------------------------
+# Truth guardrails. Enforced in CODE after the model returns, not just in the
+# prompt. A violation fails the generation and retries once with the violation
+# quoted back to the model; a second violation is a hard failure.
+# ---------------------------------------------------------------------------
+
+# Claims that must NEVER appear in tailored output, even if they appear in the
+# master resume or your notes. Matched case-insensitively with whitespace and
+# punctuation normalised. Entries starting with "re:" are treated as regexes.
+forbidden_claims: []
+  # - "Project Halberd"          # NDA'd, cannot be named
+  # - "re:\\b(security clearance|SC cleared)\\b"
+
+# Exact strings that must be copied verbatim wherever they appear. Job titles,
+# degree names, employer names and dates. Entry header fields are ALSO
+# structurally immutable in the IR, so this is a second line of defence.
+never_reword:
+  - "BSc (Hons) Computer Science"
+  # - "Senior Software Engineer"
+  # - "Jan 2023 -- Present"
+
+# Hard cap on a rewritten bullet, in characters. Rewrites over this are
+# rejected and retried. Keeps one-page layouts from silently overflowing.
+max_bullet_length: 240
+
+# Maximum pages for the compiled PDF. Set to null to allow any length.
+max_pages: 1
+
+# Reject a rewrite that introduces a number, date, percentage or proper noun
+# not present in its source bullet. This is the main anti-fabrication check.
+forbid_new_entities: true
+
+# Numbers exempt from the check above (version numbers, common ordinals).
+entity_allowlist:
+  - "3"
+  - "5"

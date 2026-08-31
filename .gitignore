@@ -1,0 +1,28 @@
+# Real CV, application history, generated PDFs, run logs, model cache.
+# Never commit anything under data/.
+data/
+!data/.gitkeep
+
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+frontend/*.tsbuildinfo

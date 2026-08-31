@@ -1,0 +1,42 @@
+# ---------------------------------------------------------------------------
+# Model preference by role. These are PREFIX HINTS, not hardcoded ids.
+#
+# At startup the app GETs /v1/models from the provider, caches the catalogue to
+# data/cache/nim_models.json for 24h, and resolves each role by walking this
+# list in order and taking the first entry that prefix-matches something the
+# catalogue actually serves. The resolved id is logged and shown in the UI.
+#
+# Expect several of these to miss -- the catalogue changes. That is the point
+# of resolving rather than hardcoding. `terminal_fallback` is used only when
+# nothing above it matches; it should be the most boringly available model.
+# Override either role entirely with EXTRACTOR_MODEL / REWRITER_MODEL in .env.
+# ---------------------------------------------------------------------------
+
+roles:
+  # JD parsing, keyword extraction, structured JSON. Called many times per run,
+  # so it wants to be fast and cheap rather than clever.
+  extractor:
+    prefer:
+      - deepseek-ai/deepseek-v4-flash
+      - qwen/qwen3
+      - meta/llama-3.1-70b-instruct
+      - meta/llama-3.1-8b-instruct
+    terminal_fallback: meta/llama-3.1-8b-instruct
+    temperature: 0.0
+    max_tokens: 2048
+
+  # Bullet rewriting and cover-letter phrasing. Called a handful of times per
+  # tailoring run, so it can afford to be the stronger model.
+  rewriter:
+    prefer:
+      - nvidia/nemotron-3-super
+      - qwen/qwen3.5
+      - deepseek-ai/deepseek-v4-pro
+      - zhipuai/glm-5.1
+      - meta/llama-3.1-70b-instruct
+    terminal_fallback: meta/llama-3.1-70b-instruct
+    temperature: 0.2
+    max_tokens: 1024
+
+# How long to trust the cached /v1/models catalogue.
+catalogue_ttl_hours: 24

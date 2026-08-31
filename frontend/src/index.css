@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+/* Dark by default. Tokens are defined once here so tables, badges and the
+   health banner all pull from the same palette. */
+@theme {
+  --color-ink-950: #0a0c10;
+  --color-ink-900: #11141a;
+  --color-ink-800: #171b23;
+  --color-ink-700: #232936;
+  --color-ink-600: #323a4a;
+  --color-ink-400: #7c8798;
+  --color-ink-200: #c3cad6;
+  --color-ink-50: #eef1f6;
+
+  --color-accent: #6ea8fe;
+  --color-ok: #4ade80;
+  --color-warn: #fbbf24;
+  --color-bad: #f87171;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-ink-950);
+  color: var(--color-ink-200);
+  font-feature-settings: "tnum" 1;
+}
+
+/* Dense tables are the default reading surface, not cards. */
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.tbl th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--color-ink-400);
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-ink-700);
+  white-space: nowrap;
+}
+.tbl td {
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--color-ink-800);
+  vertical-align: top;
+}
+.tbl tbody tr:hover {
+  background-color: var(--color-ink-900);
+}
