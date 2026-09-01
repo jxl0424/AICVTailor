@@ -8,16 +8,24 @@
 # master resume or your notes. Matched case-insensitively with whitespace and
 # punctuation normalised. Entries starting with "re:" are treated as regexes.
 forbidden_claims: []
+  # Put real entries in config/guardrails.local.yaml instead -- that file is
+  # gitignored, and these strings are usually the ones you cannot publish.
   # - "Project Halberd"          # NDA'd, cannot be named
   # - "re:\\b(security clearance|SC cleared)\\b"
 
-# Exact strings that must be copied verbatim wherever they appear. Job titles,
-# degree names, employer names and dates. Entry header fields are ALSO
-# structurally immutable in the IR, so this is a second line of defence.
-never_reword:
-  - "BSc (Hons) Computer Science"
-  # - "Senior Software Engineer"
-  # - "Jan 2023 -- Present"
+# Exact strings that must be copied verbatim wherever they appear.
+#
+# You do NOT need to list job titles, employers, degree names, institutions or
+# dates here. Those live in entry headers, and the parser gives headers no
+# editable span at all -- there is no id that addresses them, so no code path
+# can rewrite one. See tests/test_latex_immutability.py.
+#
+# This list is for strings that appear inside BULLETS and must survive a
+# rewrite untouched: certification names, product names, exact framings you
+# have already had checked by someone.
+never_reword: []
+  # - "Chartered Engineer"
+  # - "ISO 27001"
 
 # Hard cap on a rewritten bullet, in characters. Rewrites over this are
 # rejected and retried. Keeps one-page layouts from silently overflowing.

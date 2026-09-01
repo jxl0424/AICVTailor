@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 
 from . import health, paths
 from .db import init_db
@@ -17,6 +18,15 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("init-db", help="create the SQLite schema if absent")
     doctor = sub.add_parser("doctor", help="run health probes and print the report")
     doctor.add_argument("--json", action="store_true", help="machine-readable output")
+
+    show = sub.add_parser("parse", help="parse a .tex resume and print its structure")
+    show.add_argument("path", nargs="?", help="defaults to data/master/master.tex")
+    show.add_argument("--json", action="store_true", help="dump the IR as JSON")
+    show.add_argument(
+        "--check",
+        action="store_true",
+        help="verify the round-trip properties on this file and exit non-zero on failure",
+    )
 
     args = parser.parse_args(argv)
 
@@ -39,7 +49,112 @@ def main(argv: list[str] | None = None) -> int:
                     print(f"   {'':<15} -> {probe['fallback']}")
         return 0 if report["status"] != "unavailable" else 1
 
+    if args.command == "parse":
+        return _cmd_parse(args)
+
     return 1
+
+
+def _cmd_parse(args) -> int:
+    from .latex import parse
+
+    target = Path(args.path) if args.path else paths.MASTER_DIR / "master.tex"
+    if not target.exists():
+        print(f"no such file: {target}", file=sys.stderr)
+        return 1
+
+    text = target.read_text(encoding="utf-8")
+    doc = parse(text)
+
+    if args.check:
+        return _check_roundtrips(doc, text)
+
+    if args.json:
+        print(json.dumps(_as_dict(doc), indent=2))
+        return 0
+
+    print(f"{target}  ({len(text)} bytes)")
+    print(
+        f"  {len(doc.sections)} sections, {len(list(doc.entries()))} entries, "
+        f"{len(list(doc.bullets()))} bullets, {len(list(doc.skill_lines()))} skill lines\n"
+    )
+    for section in doc.sections:
+        print(f"[{section.id}] {section.title}")
+        for entry in section.entries:
+            fields = "  ".join(
+                f"{f.role_guess}={f.text.strip()[:30]!r}" for f in entry.fields
+            )
+            print(f"  ({entry.id}) {entry.kind}: {fields}")
+            for bullet in entry.bullets:
+                flag = " [protected]" if bullet.protected else ""
+                print(f"      {bullet.id}  {bullet.text.strip()[:64]}...{flag}")
+        for line in section.skill_lines:
+            print(f"  ({line.id}) {line.label}: {', '.join(line.values)}")
+    return 0
+
+
+def _check_roundtrips(doc, text: str) -> int:
+    """The Phase 1 gate, runnable against any file the user points it at."""
+    failures: list[str] = []
+
+    if doc.to_source() != text:
+        failures.append("identity: regenerating with no edits changed the file")
+
+    edits = [doc.edit(b.id, b.text) for b in doc.bullets()]
+    edits += [doc.edit(k.id, k.values_span.text(text)) for k in doc.skill_lines()]
+    if doc.to_source(edits) != text:
+        failures.append("restore: rewriting each span with its own text changed the file")
+
+    for bullet in doc.bullets():
+        out = doc.to_source([doc.edit(bullet.id, bullet.text + " SENTINEL")])
+        if out[: bullet.span.start] != text[: bullet.span.start] or out[
+            bullet.span.end + 9 :
+        ] != text[bullet.span.end :]:
+            failures.append(f"mutation: editing {bullet.id} disturbed bytes outside its span")
+            break
+
+    for line in failures:
+        print(f" ! {line}")
+    if not failures:
+        print(f" + identity, restore and mutation round-trips all byte-identical")
+        print(f"   ({len(edits)} editable spans, {len(list(doc.bullets()))} bullets)")
+    return 1 if failures else 0
+
+
+def _as_dict(doc) -> dict:
+    return {
+        "sections": [
+            {
+                "id": s.id,
+                "title": s.title,
+                "entries": [
+                    {
+                        "id": e.id,
+                        "kind": e.kind,
+                        "fields": [
+                            {"index": f.index, "role_guess": f.role_guess, "text": f.text}
+                            for f in e.fields
+                        ],
+                        "bullets": [
+                            {
+                                "id": b.id,
+                                "fingerprint": b.fingerprint,
+                                "text": b.text,
+                                "protected": list(b.protected),
+                            }
+                            for b in e.bullets
+                        ],
+                    }
+                    for e in s.entries
+                ],
+                "skills": [
+                    {"id": k.id, "label": k.label, "values": list(k.values)}
+                    for k in s.skill_lines
+                ],
+            }
+            for s in doc.sections
+        ]
+    }
 
 
 if __name__ == "__main__":

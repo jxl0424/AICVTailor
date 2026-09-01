@@ -26,3 +26,6 @@ frontend/.vite/
 .idea/
 .vscode/
 frontend/*.tsbuildinfo
+
+# Personal guardrail entries (NDA project names etc). Never committed.
+config/*.local.yaml

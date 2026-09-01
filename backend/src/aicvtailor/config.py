@@ -61,7 +61,14 @@ def _load_yaml(path, default: dict[str, Any]) -> dict[str, Any]:
 
 @functools.lru_cache(maxsize=1)
 def get_guardrails() -> dict[str, Any]:
-    return _load_yaml(
+    """Load guardrails, merging in an optional gitignored local override.
+
+    `forbidden_claims` holds things like NDA'd project names, which are exactly
+    the strings that must not end up in a committed file. So config/ ships the
+    shape and config/guardrails.local.yaml carries the personal entries. List
+    values concatenate; scalars from the local file win.
+    """
+    rails = _load_yaml(
         paths.GUARDRAILS_FILE,
         {
             "forbidden_claims": [],
@@ -72,6 +79,14 @@ def get_guardrails() -> dict[str, Any]:
             "entity_allowlist": [],
         },
     )
+
+    local = _load_yaml(paths.GUARDRAILS_LOCAL_FILE, {})
+    for key, value in local.items():
+        if isinstance(value, list) and isinstance(rails.get(key), list):
+            rails[key] = [*rails[key], *value]
+        else:
+            rails[key] = value
+    return rails
 
 
 @functools.lru_cache(maxsize=1)

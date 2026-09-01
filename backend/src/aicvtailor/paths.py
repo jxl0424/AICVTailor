@@ -31,6 +31,8 @@ OUTPUT_DIR = DATA_DIR / "output"
 DB_PATH = DATA_DIR / "app.db"
 
 GUARDRAILS_FILE = CONFIG_DIR / "guardrails.yaml"
+# Gitignored. Holds personal or NDA'd entries that must not be committed.
+GUARDRAILS_LOCAL_FILE = CONFIG_DIR / "guardrails.local.yaml"
 SKILLS_FILE = CONFIG_DIR / "skills.yaml"
 MODELS_FILE = CONFIG_DIR / "models.yaml"
 

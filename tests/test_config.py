@@ -52,3 +52,23 @@ def test_every_model_role_has_a_terminal_fallback():
     for name, role in roles.items():
         assert role.get("prefer"), f"{name} has no preference list"
         assert role.get("terminal_fallback"), f"{name} has no terminal_fallback"
+
+
+def test_guardrails_local_override_merges(tmp_path, monkeypatch):
+    """Personal entries live in a gitignored override, so they never reach a
+    committed file. Lists concatenate, scalars are replaced."""
+    import yaml
+
+    from aicvtailor import config, paths
+
+    override = tmp_path / "guardrails.local.yaml"
+    override.write_text(
+        yaml.safe_dump({"forbidden_claims": ["Project Placeholder"], "max_bullet_length": 99})
+    )
+    monkeypatch.setattr(paths, "GUARDRAILS_LOCAL_FILE", override)
+    config.get_guardrails.cache_clear()
+
+    rails = config.get_guardrails()
+    assert "Project Placeholder" in rails["forbidden_claims"]
+    assert rails["max_bullet_length"] == 99
+    config.get_guardrails.cache_clear()
