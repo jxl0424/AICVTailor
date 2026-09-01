@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from . import health as health_probes
 from . import paths
+from .api.analysis import router as analysis_router
 from .api.health import router as health_router
 from .config import get_settings
 from .db import init_db
@@ -61,6 +62,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(health_router)
+    app.include_router(analysis_router)
     return app
 
 

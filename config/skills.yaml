@@ -76,6 +76,42 @@ terms:
     category: soft_skill
     synonyms: [mentorship, coaching, "onboarding juniors", "technical leadership"]
 
+  - canonical: Vector database
+    category: tool
+    synonyms: [qdrant, weaviate, pgvector, pinecone, chromadb, "vector store",
+               "vector db", milvus, faiss]
+
+  - canonical: Knowledge graph
+    category: method
+    synonyms: [neo4j, "graph database", "graph databases", cypher,
+               "entity retrieval", "graph traversal"]
+
+  - canonical: LangChain
+    category: tool
+    synonyms: [langgraph, "llama index", llamaindex]
+
+  - canonical: Embeddings
+    category: method
+    synonyms: ["embedding models", "sentence embeddings", "text embeddings",
+               "dense retrieval", specter, "bi-encoder"]
+
+  - canonical: Reranking
+    category: method
+    synonyms: ["cross-encoder", "cross encoder", "re-ranking", reranker]
+
+  - canonical: Fine-tuning
+    category: method
+    synonyms: ["fine tuning", finetuning, lora, peft, "instruction tuning",
+               "supervised fine-tuning"]
+
+  - canonical: Monitoring
+    category: method
+    synonyms: [observability, grafana, prometheus, "production monitoring"]
+
+  - canonical: Chunking
+    category: method
+    synonyms: ["chunking strategies", "text splitting", "document chunking"]
+
 # Terms that look like skills but are boilerplate noise. Dropped before ranking.
 stoplist:
   - "team player"

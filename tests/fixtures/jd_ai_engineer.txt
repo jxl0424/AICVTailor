@@ -1,0 +1,47 @@
+AI Engineer (LLM Systems) at Northwind Analytics
+
+Location: London, UK - hybrid, 3 days per week in our Shoreditch office
+
+About us
+Northwind Analytics builds decision-support tooling for the legal and insurance
+sectors. We are a team of 40, profitable, and backed by a Series B round. We
+offer a competitive salary, 28 days holiday, and a learning budget.
+
+The role
+You will join a small applied AI team taking retrieval systems from prototype to
+production. Day-to-day you will design and ship RAG pipelines over large
+document collections, build evaluation harnesses that tell us whether a change
+actually helped, and work with product and legal stakeholders to turn fuzzy
+requirements into measurable systems. You will own services end to end,
+including deployment and monitoring.
+
+What we're looking for
+- Strong Python. You must have production experience, not just notebooks.
+- Demonstrable experience building retrieval-augmented generation systems,
+  including chunking strategies, embedding models and vector search.
+- Proven track record with LLM evaluation: you have built eval harnesses and can
+  talk about faithfulness, context recall and hallucination rates.
+- Experience with vector databases such as Qdrant, Weaviate or pgvector.
+- Required: comfort with Docker and deploying containerised services.
+- You have worked with prompt engineering and understand its limits.
+- Excellent stakeholder communication. You can explain a retrieval failure to a
+  lawyer without jargon.
+
+Nice to have
+- Knowledge graphs and graph databases such as Neo4j.
+- Familiarity with Kubernetes for orchestration.
+- Exposure to fine-tuning open-weight models.
+- Experience mentoring junior engineers.
+- Publications or open-source contributions in NLP.
+
+Tech you'll touch
+Python, PyTorch, LangChain, FastAPI, PostgreSQL, Qdrant, Docker, GitHub Actions,
+and a monitoring stack built on Grafana. We run CI/CD on every merge.
+
+Visa
+We are unable to sponsor visas for this role. You must have the existing right
+to work in the UK.
+
+How to apply
+Send a CV and a short note. We are an equal opportunity employer and welcome
+applications from all backgrounds.
