@@ -110,6 +110,11 @@ class Suggestion(SQLModel, table=True):
     proposed_text: Optional[str] = Field(default=None, sa_column=Column(Text))
     # REWORD must always carry one. Enforced at the service layer, not just here.
     source_bullet_id: Optional[str] = None
+    # The editable span an accepted suggestion writes to. Null for GAP, which
+    # has nothing to apply.
+    target_id: Optional[str] = None
+    # Recorded so a rejected rewrite can be inspected rather than just lost.
+    guardrail_violations: Optional[list[Any]] = Field(default=None, sa_column=Column(JSON))
     rationale: Optional[str] = Field(default=None, sa_column=Column(Text))
     accepted: bool = Field(default=False)
     created_at: datetime = Field(default_factory=utcnow)

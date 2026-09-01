@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
-import { ApiError, analysisApi, type AnalysisResult, type MasterResumeRow } from "../api";
+import {
+  ApiError,
+  analysisApi,
+  suggestionApi,
+  type AnalysisResult,
+  type MasterResumeRow,
+  type SuggestionRow,
+} from "../api";
 import { CoverageBar } from "../components/CoverageBar";
+import { SuggestionList } from "../components/SuggestionList";
 import { TermTable } from "../components/TermTable";
 
 export function Tailor() {
@@ -11,6 +19,10 @@ export function Tailor() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [suggestions, setSuggestions] = useState<SuggestionRow[]>([]);
+  const [suggesting, setSuggesting] = useState(false);
+  const [providerNote, setProviderNote] = useState<string>("");
+  const [view, setView] = useState<"terms" | "suggestions">("terms");
 
   const loadMasters = () =>
     analysisApi
@@ -31,17 +43,40 @@ export function Tailor() {
     setBusy(true);
     setError(null);
     try {
-      setResult(
-        await analysisApi.analyse({
-          text: jdText.trim() || undefined,
-          url: jdUrl.trim() || undefined,
-          master_id: masterId,
-        }),
-      );
+      const analysis = await analysisApi.analyse({
+        text: jdText.trim() || undefined,
+        url: jdUrl.trim() || undefined,
+        master_id: masterId,
+      });
+      setResult(analysis);
+      setSuggestions([]);
+      setProviderNote("");
+      setView("terms");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : String(err));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function suggest() {
+    if (!result?.jd_id) return;
+    setSuggesting(true);
+    setError(null);
+    try {
+      const created = await suggestionApi.generate(result.jd_id);
+      setSuggestions(created.suggestions);
+      setView("suggestions");
+      setProviderNote(
+        created.provider_available
+          ? ""
+          : `No LLM provider available (${created.provider_error}). Rewrites need one; ` +
+            "gaps and relocations do not.",
+      );
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : String(err));
+    } finally {
+      setSuggesting(false);
     }
   }
 
@@ -145,7 +180,45 @@ export function Tailor() {
               </p>
             ))}
 
-            <TermTable terms={result.terms} />
+            <div className="flex items-center gap-2 border-b border-ink-800 text-xs">
+              {(["terms", "suggestions"] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={`border-b-2 px-2 py-1.5 ${
+                    view === v
+                      ? "border-accent text-ink-50"
+                      : "border-transparent text-ink-400 hover:text-ink-200"
+                  }`}
+                >
+                  {v === "terms" ? `terms (${result.terms.length})` : `suggestions (${suggestions.length})`}
+                </button>
+              ))}
+              <button
+                className="ml-auto rounded border border-ink-700 px-2 py-0.5 text-ink-400 hover:text-ink-200 disabled:opacity-40"
+                onClick={suggest}
+                disabled={suggesting}
+              >
+                {suggesting ? "generating…" : "Generate suggestions"}
+              </button>
+            </div>
+
+            {providerNote && (
+              <p className="rounded border border-warn/30 bg-warn/5 p-2 text-xs text-warn">
+                {providerNote}
+              </p>
+            )}
+
+            {view === "terms" ? (
+              <TermTable terms={result.terms} />
+            ) : (
+              <SuggestionList
+                suggestions={suggestions}
+                onChange={(row) =>
+                  setSuggestions((rows) => rows.map((r) => (r.id === row.id ? { ...r, ...row } : r)))
+                }
+              />
+            )}
 
             {result.unknown_terms.length > 0 && (
               <details className="rounded border border-ink-700 p-2 text-xs">

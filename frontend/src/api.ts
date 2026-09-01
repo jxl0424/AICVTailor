@@ -146,3 +146,47 @@ export const analysisApi = {
       body: JSON.stringify(body),
     }),
 };
+
+// --- suggestions ------------------------------------------------------------
+
+export type SuggestionAction = "REWORD" | "RELOCATE" | "GAP";
+
+export interface GuardrailViolation {
+  rule: string;
+  detail: string;
+  offending: string;
+}
+
+export interface SuggestionRow {
+  id: number;
+  term: string;
+  category: string;
+  weight: number;
+  status: string;
+  action: SuggestionAction;
+  proposed_text: string | null;
+  original_text?: string;
+  source_bullet_id: string | null;
+  target_id: string | null;
+  rationale: string;
+  guardrail_violations: GuardrailViolation[] | null;
+  accepted: boolean;
+  applicable: boolean;
+  what_it_would_take?: string;
+}
+
+export const suggestionApi = {
+  generate: (jd_id: number) =>
+    request<{
+      run_id: string;
+      provider_available: boolean;
+      provider_error: string;
+      suggestions: SuggestionRow[];
+    }>("/api/suggest", { method: "POST", body: JSON.stringify({ jd_id }) }),
+  list: (jd_id: number) => request<SuggestionRow[]>(`/api/jds/${jd_id}/suggestions`),
+  decide: (id: number, accepted: boolean) =>
+    request<SuggestionRow>(`/api/suggestions/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ accepted }),
+    }),
+};

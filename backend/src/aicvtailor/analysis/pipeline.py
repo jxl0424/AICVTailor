@@ -27,6 +27,15 @@ class RankedTerm:
     weight: WeightBreakdown
     match: Match
 
+    @property
+    def canonical(self) -> str:
+        """The term's name. `self.term` is the Term object, not its string."""
+        return self.term.canonical
+
+    @property
+    def term_category(self) -> str:
+        return self.term.category
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "term": self.term.canonical,

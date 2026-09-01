@@ -35,6 +35,18 @@ class Probe:
     meta: dict[str, Any] = field(default_factory=dict)
 
 
+def _display_path(path) -> str:
+    """Project-relative when possible, absolute otherwise.
+
+    A data directory outside the repo is legitimate, and relative_to() raises
+    on it rather than returning something useful.
+    """
+    try:
+        return str(path.relative_to(paths.ROOT))
+    except ValueError:
+        return str(path)
+
+
 def _version_of(binary: str) -> str:
     """Best-effort version string. Never raises."""
     for flag in ("--version", "-version"):
@@ -266,7 +278,7 @@ def probe_database() -> Probe:
     return Probe(
         name="database",
         status="ok",
-        detail=f"SQLite at {paths.DB_PATH.relative_to(paths.ROOT)} ({size} bytes).",
+        detail=f"SQLite at {_display_path(paths.DB_PATH)} ({size} bytes).",
     )
 
 
