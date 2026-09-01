@@ -117,10 +117,45 @@ def probe_nim() -> Probe:
         except (OSError, json.JSONDecodeError):
             meta["cached_models"] = 0
 
+    # Resolve against the cached catalogue only. Health is polled by the UI and
+    # must not make a network call or spend the free tier.
+    try:
+        from .llm import catalogue as cat
+
+        cached = cat.load_cached()
+        resolutions = {r.role.value: r for r in cat.resolve_all(cached).values()}
+        meta["models"] = {role: r.model for role, r in resolutions.items()}
+        warnings = [r.warning for r in resolutions.values() if r.warning]
+    except Exception as exc:  # noqa: BLE001 -- resolution never blocks health
+        return Probe(
+            name="nim",
+            status="degraded",
+            detail=f"Key present, but model resolution failed: {exc}",
+            fallback="Calls will use the configured defaults.",
+            meta=meta,
+        )
+
+    models = ", ".join(f"{role}={r.model}" for role, r in resolutions.items())
+    if not cached:
+        return Probe(
+            name="nim",
+            status="degraded",
+            detail=f"Key present, but no model catalogue cached yet ({models}).",
+            fallback="Run `aicvtailor models --refresh` to fetch the live list.",
+            meta=meta,
+        )
+    if warnings:
+        return Probe(
+            name="nim",
+            status="degraded",
+            detail=f"Key present. Resolved {models}.",
+            fallback=" ".join(warnings),
+            meta=meta,
+        )
     return Probe(
         name="nim",
         status="ok",
-        detail=f"Key present, endpoint {settings.nim_base_url}.",
+        detail=f"Key present. Resolved {models}.",
         meta=meta,
     )
 

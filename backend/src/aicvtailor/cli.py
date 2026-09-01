@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
 
@@ -19,6 +20,12 @@ def main(argv: list[str] | None = None) -> int:
     doctor = sub.add_parser("doctor", help="run health probes and print the report")
     doctor.add_argument("--json", action="store_true", help="machine-readable output")
 
+    models = sub.add_parser("models", help="show the live model catalogue and role resolution")
+    models.add_argument(
+        "--refresh", action="store_true", help="bypass the 24h cache and refetch"
+    )
+    models.add_argument("--all", action="store_true", help="list every live model id")
+
     show = sub.add_parser("parse", help="parse a .tex resume and print its structure")
     show.add_argument("path", nargs="?", help="defaults to data/master/master.tex")
     show.add_argument("--json", action="store_true", help="dump the IR as JSON")
@@ -28,7 +35,14 @@ def main(argv: list[str] | None = None) -> int:
         help="verify the round-trip properties on this file and exit non-zero on failure",
     )
 
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="show library log output"
+    )
     args = parser.parse_args(argv)
+
+    # The CLI formats its own findings; the library logger would print each
+    # warning a second time.
+    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.ERROR)
 
     if args.command == "init-db":
         paths.ensure_dirs()
@@ -49,10 +63,40 @@ def main(argv: list[str] | None = None) -> int:
                     print(f"   {'':<15} -> {probe['fallback']}")
         return 0 if report["status"] != "unavailable" else 1
 
+    if args.command == "models":
+        return _cmd_models(args)
+
     if args.command == "parse":
         return _cmd_parse(args)
 
     return 1
+
+
+def _cmd_models(args) -> int:
+    from .config import get_settings
+    from .llm import catalogue
+
+    if not get_settings().nvidia_api_key and args.refresh:
+        print("NVIDIA_API_KEY is not set, so the live catalogue cannot be fetched.")
+        print("Showing whatever is cached instead.\n")
+
+    ids = catalogue.fetch_catalogue(force=args.refresh)
+    print(f"{len(ids)} models in the catalogue"
+          f"{' (cached)' if not args.refresh else ''}\n")
+
+    if args.all:
+        for model_id in sorted(ids):
+            print(f"  {model_id}")
+        print()
+
+    print("role resolution:")
+    for resolution in catalogue.resolve_all(ids).values():
+        mark = "+" if resolution.verified else "!"
+        print(f" {mark} {resolution.role.value:<10} {resolution.model}")
+        print(f"   {'':<10} matched {resolution.matched!r} via {resolution.source}")
+        if resolution.warning:
+            print(f"   {'':<10} -> {resolution.warning}")
+    return 0
 
 
 def _cmd_parse(args) -> int:
