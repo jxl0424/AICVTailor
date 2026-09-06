@@ -101,6 +101,9 @@ def get_model_prefs() -> dict[str, Any]:
 
 def reload_config() -> None:
     """Drop cached config so edited YAML is picked up without a restart."""
+    from .analysis.semantic import build_index
+
+    build_index.cache_clear()
     get_settings.cache_clear()
     get_guardrails.cache_clear()
     get_skills.cache_clear()

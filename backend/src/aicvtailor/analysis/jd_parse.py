@@ -105,7 +105,12 @@ def _context(text: str, pattern: re.Pattern[str]) -> str:
     match = pattern.search(text)
     if not match:
         return ""
-    start = max(0, text.rfind(".", 0, match.start()) + 1)
+    # Break on a newline as well as a full stop, or a heading immediately
+    # above the sentence gets glued onto the front of it.
+    start = max(
+        text.rfind(".", 0, match.start()) + 1,
+        text.rfind("\n", 0, match.start()) + 1,
+    )
     end = text.find(".", match.end())
     return text[start : end if end != -1 else len(text)].strip()[:240]
 

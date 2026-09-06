@@ -217,6 +217,27 @@ def _reword_for(
         provider, bullet.text, [ranked.canonical], rails=rails, runlog=runlog
     )
 
+    if proposed.strip() == bullet.text.strip():
+        # The model was told to leave the bullet alone when it does not
+        # support the term, and it did. That is the honest outcome, but it is
+        # a gap rather than an edit to accept.
+        return GapSuggestion(
+            term=ranked.canonical,
+            category=ranked.term_category,
+            weight=ranked.weight.weight,
+            status=ranked.match.status.value,
+            rationale=(
+                f"{bullet.id} looked similar (score {ranked.match.score}), but the "
+                "rewriter returned it unchanged: nothing in it actually supports "
+                "this term."
+            ),
+            what_it_would_take=(
+                f"To claim {ranked.canonical} honestly you would need to actually do "
+                "it, or point the rewrite at a different bullet that genuinely "
+                "evidences it."
+            ),
+        )
+
     if not report.ok:
         return GapSuggestion(
             term=ranked.canonical,

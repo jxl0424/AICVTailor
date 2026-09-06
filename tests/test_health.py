@@ -33,6 +33,9 @@ def bare_env(monkeypatch):
     monkeypatch.setenv("EMBEDDINGS_ENABLED", "false")
     monkeypatch.setenv("LATEX_ENGINE", "none")
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://127.0.0.1:59999/v1")
+    # Pin the provider: without this the test reads whatever the developer's
+    # .env happens to say and fails on an unrelated local change.
+    monkeypatch.setenv("LLM_PROVIDER", "nim")
     reload_config()
     yield
     reload_config()

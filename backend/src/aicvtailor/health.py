@@ -240,22 +240,29 @@ def probe_embeddings() -> Probe:
             detail="Disabled by EMBEDDINGS_ENABLED=false.",
             fallback="Matching is lexical only; implied_by detection will be weaker.",
         )
-    try:
-        import model2vec  # noqa: F401
-    except ImportError:
+    # Importability is not availability: the package installs fine but the
+    # weights still have to be fetched once. Ask for the index that would
+    # actually be used, which is cached after the first call.
+    from .analysis.semantic import build_index
+
+    backend = build_index().name
+    if backend == "lexical":
         return Probe(
             name="embeddings",
             status="degraded",
-            detail="model2vec is not installed.",
+            detail=f"Could not load {settings.embeddings_model}; using lexical matching.",
             fallback=(
-                "Falling back to lexical matching. Terms only covered semantically "
-                "(not by a skills.yaml synonym) will read as missing."
+                "Install with `pip install -e \".[embeddings]\"` and allow one "
+                "download. Until then, terms your resume covers only in meaning "
+                "will read as missing."
             ),
+            meta={"backend": backend},
         )
     return Probe(
         name="embeddings",
         status="ok",
         detail=f"Static embeddings via {settings.embeddings_model}.",
+        meta={"backend": backend},
     )
 
 

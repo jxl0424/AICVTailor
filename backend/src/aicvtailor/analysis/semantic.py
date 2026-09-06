@@ -8,6 +8,7 @@ so it gets the same tests.
 
 from __future__ import annotations
 
+import functools
 import logging
 import re
 from typing import Protocol
@@ -88,6 +89,7 @@ class StaticEmbeddingIndex:
         return max(0.0, 0.7 * cosine + 0.3 * self._lexical.similarity(term, text))
 
 
+@functools.lru_cache(maxsize=1)
 def build_index() -> SimilarityIndex:
     """Static embeddings if configured and loadable, otherwise lexical."""
     from ..config import get_settings
