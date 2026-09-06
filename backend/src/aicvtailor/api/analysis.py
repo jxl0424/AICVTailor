@@ -193,6 +193,57 @@ def run_analysis(request: AnalyseRequest) -> dict[str, Any]:
     return payload
 
 
+@router.delete("/jds/{jd_id}")
+def delete_jd(jd_id: int) -> dict[str, Any]:
+    """Delete a job description without losing application history.
+
+    The cascade rule from the brief: tailored resumes made against this JD
+    become orphans rather than disappearing, keeping their company and role
+    snapshots so they still say what they were for. Suggestions are derived
+    from the JD's analysis and are meaningless without it, so they go.
+    """
+    from ..models import Application, Suggestion as SuggestionRow, TailoredResume
+
+    with Session(get_engine()) as session:
+        jd = session.get(JobDescription, jd_id)
+        if jd is None:
+            raise HTTPException(404, f"job description {jd_id} not found")
+
+        orphaned = 0
+        for resume in session.exec(
+            select(TailoredResume).where(TailoredResume.jd_id == jd_id)
+        ).all():
+            resume.jd_id = None
+            session.add(resume)
+            orphaned += 1
+
+        unlinked = 0
+        for application in session.exec(
+            select(Application).where(Application.jd_id == jd_id)
+        ).all():
+            application.jd_id = None
+            session.add(application)
+            unlinked += 1
+
+        discarded = 0
+        for suggestion in session.exec(
+            select(SuggestionRow).where(SuggestionRow.jd_id == jd_id)
+        ).all():
+            session.delete(suggestion)
+            discarded += 1
+
+        session.flush()
+        session.delete(jd)
+        session.commit()
+
+    return {
+        "deleted": jd_id,
+        "orphaned_resumes": orphaned,
+        "unlinked_applications": unlinked,
+        "discarded_suggestions": discarded,
+    }
+
+
 @router.get("/jds")
 def list_jds(limit: int = 50) -> list[dict[str, Any]]:
     with Session(get_engine()) as session:

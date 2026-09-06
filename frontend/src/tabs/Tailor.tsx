@@ -3,6 +3,7 @@ import {
   ApiError,
   analysisApi,
   suggestionApi,
+  tailorApi,
   type AnalysisResult,
   type MasterResumeRow,
   type SuggestionRow,
@@ -23,6 +24,8 @@ export function Tailor() {
   const [suggesting, setSuggesting] = useState(false);
   const [providerNote, setProviderNote] = useState<string>("");
   const [view, setView] = useState<"terms" | "suggestions">("terms");
+  const [tailoring, setTailoring] = useState(false);
+  const [tailorNote, setTailorNote] = useState("");
 
   const loadMasters = () =>
     analysisApi
@@ -79,6 +82,31 @@ export function Tailor() {
       setSuggesting(false);
     }
   }
+
+  async function runTailor() {
+    if (!result?.jd_id) return;
+    setTailoring(true);
+    setError(null);
+    try {
+      const run = await tailorApi.run(result.jd_id);
+      try {
+        sessionStorage.setItem("lastTailorRun", JSON.stringify(run));
+      } catch {
+        /* storage unavailable: the Changes tab will show its empty state */
+      }
+      setTailorNote(
+        `${run.applied} change(s) applied. ` +
+          (run.compiled ? `Compiled, ${run.verification.pages} page(s).` : "Not compiled.") +
+          " See the Changes tab.",
+      );
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : String(err));
+    } finally {
+      setTailoring(false);
+    }
+  }
+
+  const acceptedCount = suggestions.filter((s) => s.accepted).length;
 
   return (
     <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-[380px_1fr]">
@@ -201,7 +229,25 @@ export function Tailor() {
               >
                 {suggesting ? "generating…" : "Generate suggestions"}
               </button>
+              <button
+                className="rounded bg-accent/90 px-2 py-0.5 text-ink-950 hover:bg-accent disabled:opacity-30"
+                onClick={runTailor}
+                disabled={tailoring || acceptedCount === 0}
+                title={
+                  acceptedCount === 0
+                    ? "Accept at least one suggestion first"
+                    : `Apply ${acceptedCount} accepted change(s)`
+                }
+              >
+                {tailoring ? "tailoring…" : `Tailor (${acceptedCount})`}
+              </button>
             </div>
+
+            {tailorNote && (
+              <p className="rounded border border-ok/40 bg-ok/5 p-2 text-xs text-ok">
+                {tailorNote}
+              </p>
+            )}
 
             {providerNote && (
               <p className="rounded border border-warn/30 bg-warn/5 p-2 text-xs text-warn">

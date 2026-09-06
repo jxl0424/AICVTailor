@@ -190,3 +190,90 @@ export const suggestionApi = {
       body: JSON.stringify({ accepted }),
     }),
 };
+
+// --- tailoring --------------------------------------------------------------
+
+export interface DiffPiece {
+  kind: "equal" | "insert" | "delete";
+  text: string;
+}
+
+export interface ChangedSpan {
+  target_id: string;
+  kind: "bullet" | "skills";
+  section: string;
+  entry: string;
+  source_bullet_id: string | null;
+  target_terms: string[];
+  before: string;
+  after: string;
+  pieces: DiffPiece[];
+}
+
+export interface VerificationReport {
+  ok: boolean;
+  pages: number;
+  max_pages: number | null;
+  page_limit_ok: boolean;
+  grew: boolean;
+  extracted_chars: number;
+  surviving_terms: string[];
+  lost_terms: string[];
+  forbidden_hits: string[];
+  notes: string[];
+  skipped: boolean;
+}
+
+export interface TailorResult {
+  run_id: string;
+  tailored_id: number;
+  compiled: boolean;
+  compile_error: string;
+  engine: string;
+  changes: ChangedSpan[];
+  reverted: { target_id: string; reason: string }[];
+  verification: VerificationReport;
+  coverage_before: number;
+  coverage_after: number;
+  document_guardrails: { ok: boolean; violations: { detail: string }[] };
+  warnings: string[];
+  has_pdf: boolean;
+  applied: number;
+}
+
+export interface TailoredRow {
+  id: number;
+  jd_id: number | null;
+  company: string | null;
+  role: string | null;
+  created_at: string;
+  compiled: boolean;
+  coverage_before: number | null;
+  coverage_after: number | null;
+  changes: number;
+  has_pdf: boolean;
+  orphaned: boolean;
+}
+
+export const tailorApi = {
+  list: () => request<TailoredRow[]>("/api/tailored"),
+  run: (jd_id: number) =>
+    request<TailorResult>("/api/tailor", {
+      method: "POST",
+      body: JSON.stringify({ jd_id }),
+    }),
+  get: (id: number) =>
+    request<{
+      id: number;
+      company: string | null;
+      role: string | null;
+      compiled: boolean;
+      compile_error: string | null;
+      coverage_before: number | null;
+      coverage_after: number | null;
+      diff: { changes: ChangedSpan[] };
+      has_pdf: boolean;
+    }>(`/api/tailored/${id}`),
+  texUrl: (id: number) => `/api/tailored/${id}/download.tex`,
+  pdfUrl: (id: number) => `/api/tailored/${id}/download.pdf`,
+};

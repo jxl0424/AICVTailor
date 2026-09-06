@@ -19,6 +19,7 @@ dependencies = [
     "openai>=1.40",
     "rapidfuzz>=3.9",
     "trafilatura>=1.12",
+    "pypdf>=4.0",
 ]
 
 [project.optional-dependencies]

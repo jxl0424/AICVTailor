@@ -90,6 +90,21 @@ class Entry:
         return self.fields[0].text if self.fields else ""
 
     @property
+    def display_title(self) -> str:
+        """The heading with LaTeX markup stripped, for the UI.
+
+        Entry titles carry \\textbf{}, \\emph{} and $|$ separators; showing
+        those raw in a diff header is noise.
+        """
+        text = self.title
+        text = re.sub(r"\\href\{[^{}]*\}", "", text)
+        text = re.sub(r"\\[A-Za-z]+\*?", "", text)
+        # Control symbols are escapes, not macros: `\&` is an ampersand.
+        text = re.sub(r"\\([%&#_${}])", r"\1", text)
+        text = text.replace("$|$", "|").replace("{", "").replace("}", "")
+        return " ".join(text.split()).strip(" |")
+
+    @property
     def dates(self) -> str:
         for f in self.fields:
             if f.role_guess == "dates":

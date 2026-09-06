@@ -13,6 +13,7 @@ from . import paths
 from .api.analysis import router as analysis_router
 from .api.health import router as health_router
 from .api.suggestions import router as suggestions_router
+from .api.tailoring import router as tailoring_router
 from .config import get_settings
 from .db import init_db
 
@@ -65,6 +66,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(analysis_router)
     app.include_router(suggestions_router)
+    app.include_router(tailoring_router)
     return app
 
 
