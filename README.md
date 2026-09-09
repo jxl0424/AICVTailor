@@ -72,21 +72,37 @@ Ctrl-C stops both.
 **First run takes a couple of minutes** while pip and npm install. It prints
 what it is doing, but there are still long pauses; that is normal.
 
-**`run.sh` is a bash script.** It needs a POSIX shell:
+### Windows
 
-| Where you are | What to use |
-|---|---|
-| macOS / Linux | any terminal, including PyCharm's Terminal tab |
-| Windows | WSL, or Git Bash. **Not** PowerShell or `cmd` — `./run.sh` does nothing useful there |
-| PyCharm | use the **Terminal** tab, not the green Run button. The Run button has no runner for shell scripts unless you configure one |
+`run.sh` is a bash script, so PowerShell and `cmd` cannot execute it — and they
+fail quietly enough to look like nothing happened. Use `run.ps1` instead:
 
-If you would rather not use the script at all, run the two halves yourself:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run.ps1
+```
+
+The `-ExecutionPolicy Bypass` matters: Windows blocks unsigned scripts by
+default, and that block is also silent.
+
+In **PyCharm**, use the **Terminal** tab rather than the green Run button — the
+Run button has no shell-script runner configured by default, so clicking it can
+do nothing visible.
+
+Git Bash and WSL both work with `./run.sh` as well.
+
+For LaTeX on Windows, install [MiKTeX](https://miktex.org) and let it fetch
+packages on demand, or use tectonic.
+
+### Running the two halves yourself
+
+If you would rather skip the script:
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -e ".[dev]"     # Windows: .venv\Scripts\pip
-.venv/bin/aicvtailor init-db
-.venv/bin/uvicorn aicvtailor.main:app --port 8000 --reload &
+.venv/bin/pip install -e ".[dev]"          # Windows: .venv\Scripts\pip
+.venv/bin/aicvtailor init-db               # Windows: .venv\Scripts\aicvtailor
+.venv/bin/uvicorn aicvtailor.main:app --port 8000 --reload
+# in a second terminal:
 cd frontend && npm install && npm run dev
 ```
 

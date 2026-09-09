@@ -9,7 +9,13 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
 VENV="$ROOT/.venv"
-PY="$VENV/bin/python"
+
+# A virtualenv built by a native Windows Python puts its binaries in Scripts/,
+# not bin/, which is what you get running this under Git Bash.
+venv_bin() {
+  if [[ -d "$VENV/Scripts" ]]; then echo "$VENV/Scripts"; else echo "$VENV/bin"; fi
+}
+PY="$(venv_bin)/python"
 
 # --- config -----------------------------------------------------------------
 if [[ ! -f .env ]]; then
@@ -39,13 +45,13 @@ if [[ ! -x "$PY" ]]; then
   echo "==> first run: setting up. This takes a couple of minutes."
   echo "    creating virtualenv"
   python3 -m venv "$VENV"
-  "$VENV/bin/pip" install --quiet --upgrade pip
+  "$(venv_bin)/pip" install --quiet --upgrade pip
 fi
 
 if ! "$PY" -c "import aicvtailor" >/dev/null 2>&1; then
   FIRST_RUN=1
   echo "    installing Python dependencies (this is the slow one)"
-  "$VENV/bin/pip" install -e ".[dev]" 2>&1 | grep -E "^(Collecting|Successfully|ERROR)" || true
+  "$(venv_bin)/pip" install -e ".[dev]" 2>&1 | grep -E "^(Collecting|Successfully|ERROR)" || true
 fi
 
 if [[ ! -d frontend/node_modules ]]; then
@@ -59,10 +65,10 @@ if [[ "$FIRST_RUN" == "1" ]]; then
 fi
 
 echo "==> preparing database"
-"$VENV/bin/aicvtailor" init-db
+"$(venv_bin)/aicvtailor" init-db
 
 echo "==> component check"
-"$VENV/bin/aicvtailor" doctor || true
+"$(venv_bin)/aicvtailor" doctor || true
 
 # --- run --------------------------------------------------------------------
 # npm and uvicorn --reload both spawn grandchildren, so killing the pid we
@@ -98,7 +104,7 @@ for pair in "$BACKEND_PORT backend" "$FRONTEND_PORT frontend"; do
 done
 
 echo "==> backend  http://${BACKEND_HOST}:${BACKEND_PORT}"
-"$VENV/bin/uvicorn" aicvtailor.main:app \
+"$(venv_bin)/uvicorn" aicvtailor.main:app \
   --host "$BACKEND_HOST" --port "$BACKEND_PORT" --reload \
   --reload-dir backend/src &
 PIDS+=($!)
