@@ -69,6 +69,29 @@ Creates the virtualenv, installs both halves, seeds the database, prints a
 component check, starts the backend and frontend, and opens the browser.
 Ctrl-C stops both.
 
+**First run takes a couple of minutes** while pip and npm install. It prints
+what it is doing, but there are still long pauses; that is normal.
+
+**`run.sh` is a bash script.** It needs a POSIX shell:
+
+| Where you are | What to use |
+|---|---|
+| macOS / Linux | any terminal, including PyCharm's Terminal tab |
+| Windows | WSL, or Git Bash. **Not** PowerShell or `cmd` — `./run.sh` does nothing useful there |
+| PyCharm | use the **Terminal** tab, not the green Run button. The Run button has no runner for shell scripts unless you configure one |
+
+If you would rather not use the script at all, run the two halves yourself:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e ".[dev]"     # Windows: .venv\Scripts\pip
+.venv/bin/aicvtailor init-db
+.venv/bin/uvicorn aicvtailor.main:app --port 8000 --reload &
+cd frontend && npm install && npm run dev
+```
+
+Then open http://localhost:5173.
+
 ---
 
 ## Verifying the install

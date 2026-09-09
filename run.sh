@@ -32,20 +32,30 @@ FRONTEND_PORT="$(get_env FRONTEND_PORT 5173)"
 OPEN_BROWSER="$(get_env OPEN_BROWSER true)"
 
 # --- setup ------------------------------------------------------------------
+FIRST_RUN=0
+
 if [[ ! -x "$PY" ]]; then
-  echo "==> creating virtualenv"
+  FIRST_RUN=1
+  echo "==> first run: setting up. This takes a couple of minutes."
+  echo "    creating virtualenv"
   python3 -m venv "$VENV"
   "$VENV/bin/pip" install --quiet --upgrade pip
 fi
 
 if ! "$PY" -c "import aicvtailor" >/dev/null 2>&1; then
-  echo "==> installing backend"
-  "$VENV/bin/pip" install --quiet -e ".[dev]"
+  FIRST_RUN=1
+  echo "    installing Python dependencies (this is the slow one)"
+  "$VENV/bin/pip" install -e ".[dev]" 2>&1 | grep -E "^(Collecting|Successfully|ERROR)" || true
 fi
 
 if [[ ! -d frontend/node_modules ]]; then
-  echo "==> installing frontend dependencies"
-  (cd frontend && npm install --silent)
+  FIRST_RUN=1
+  echo "    installing frontend dependencies"
+  (cd frontend && npm install --no-fund --no-audit) 2>&1 | tail -3
+fi
+
+if [[ "$FIRST_RUN" == "1" ]]; then
+  echo "==> setup done"
 fi
 
 echo "==> preparing database"
