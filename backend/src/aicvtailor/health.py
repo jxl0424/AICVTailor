@@ -28,11 +28,25 @@ LATEX_ENGINES = ("tectonic", "latexmk", "pdflatex")
 
 @dataclass
 class Probe:
+    """A component's state.
+
+    `status` is display severity. `usable` answers a different question: can
+    this component actually do its job right now? They are not the same. A
+    Claude CLI that is switched off is 'degraded' and unusable; NVIDIA NIM with
+    a valid key but no cached model catalogue is 'degraded' and works fine.
+    Deriving one from the other reported a working install as "not ready".
+    """
+
     name: str
     status: Status
     detail: str
     fallback: str = ""
     meta: dict[str, Any] = field(default_factory=dict)
+    usable: bool | None = None
+
+    def __post_init__(self) -> None:
+        if self.usable is None:
+            self.usable = self.status == "ok"
 
 
 def _display_path(path) -> str:
@@ -153,8 +167,12 @@ def probe_nim() -> Probe:
             name="nim",
             status="degraded",
             detail=f"Key present, but no model catalogue cached yet ({models}).",
-            fallback="Run `aicvtailor models --refresh` to fetch the live list.",
+            fallback=(
+                "Calls will still work, using the fallback models above. Run "
+                "`aicvtailor models --refresh` to resolve against the live list."
+            ),
             meta=meta,
+            usable=True,
         )
     if warnings:
         return Probe(
@@ -163,6 +181,7 @@ def probe_nim() -> Probe:
             detail=f"Key present. Resolved {models}.",
             fallback=" ".join(warnings),
             meta=meta,
+            usable=True,
         )
     return Probe(
         name="nim",
@@ -222,6 +241,7 @@ def probe_ollama() -> Probe:
             detail=f"Server is up but '{settings.ollama_model}' is not pulled.",
             fallback=f"Run `ollama pull {settings.ollama_model}`.",
             meta={"available": tags},
+            usable=False,
         )
     return Probe(
         name="ollama",
@@ -336,7 +356,7 @@ def _overall(probes: list[Probe]) -> Status:
         return "unavailable"
 
     provider_names = ("nim", "claude_cli", "ollama")
-    if not any(by_name[n].status == "ok" for n in provider_names):
+    if not any(by_name[n].usable for n in provider_names):
         return "unavailable"
 
     if any(p.status != "ok" for p in probes):

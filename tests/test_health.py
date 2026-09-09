@@ -89,3 +89,73 @@ def test_reload_endpoint_rereads_config(bare_env, monkeypatch):
         assert client.get("/api/health").json()["provider"] == "nim"
         monkeypatch.setenv("LLM_PROVIDER", "ollama")
         assert client.post("/api/health/reload").json()["provider"] == "ollama"
+
+
+class TestProviderUsability:
+    """`status` is display severity; `usable` is whether it can do the job.
+
+    Regression: a working install with a valid NVIDIA key but no cached model
+    catalogue reported "Not ready -- no usable LLM provider", because overall
+    status required a provider at exactly "ok".
+    """
+
+    def test_a_key_with_no_cached_catalogue_is_still_usable(self, monkeypatch, tmp_path):
+        from aicvtailor.llm import catalogue
+
+        monkeypatch.setattr(catalogue, "CACHE_FILE", tmp_path / "empty.json")
+        monkeypatch.setenv("NVIDIA_API_KEY", "test-key")
+        reload_config()
+
+        probe = health.probe_nim()
+        assert probe.status == "degraded"
+        assert probe.usable is True
+        assert "still work" in probe.fallback
+        reload_config()
+
+    def test_that_install_is_not_reported_as_not_ready(self, monkeypatch, tmp_path):
+        from aicvtailor.llm import catalogue
+
+        monkeypatch.setattr(catalogue, "CACHE_FILE", tmp_path / "empty.json")
+        monkeypatch.setenv("NVIDIA_API_KEY", "test-key")
+        monkeypatch.setenv("LATEX_ENGINE", "none")
+        monkeypatch.setenv("EMBEDDINGS_ENABLED", "false")
+        reload_config()
+
+        report = health.run_all()
+        assert report["status"] == "degraded", "a keyed NIM install must not read as unavailable"
+        reload_config()
+
+    def test_no_key_at_all_is_still_fatal(self, bare_env):
+        assert health.run_all()["status"] == "unavailable"
+
+    def test_a_disabled_claude_cli_is_not_a_usable_provider(self, monkeypatch):
+        monkeypatch.setenv("ENABLE_CLAUDE_CLI", "false")
+        reload_config()
+
+        probe = health.probe_claude_cli()
+        assert probe.status == "degraded"  # switched off, not broken
+        assert probe.usable is False  # but it cannot serve a request
+        reload_config()
+
+    def test_ollama_without_the_model_pulled_is_not_usable(self, monkeypatch):
+        import aicvtailor.health as health_mod
+
+        class Response:
+            def raise_for_status(self): ...
+
+            def json(self):
+                return {"models": [{"name": "something-else"}]}
+
+        monkeypatch.setattr(health_mod.httpx, "get", lambda *a, **k: Response())
+        monkeypatch.setenv("OLLAMA_MODEL", "llama3.1:8b")
+        reload_config()
+
+        probe = health.probe_ollama()
+        assert probe.usable is False
+        reload_config()
+
+    def test_usable_defaults_to_status_ok(self):
+        from aicvtailor.health import Probe
+
+        assert Probe("x", "ok", "fine").usable is True
+        assert Probe("x", "unavailable", "broken").usable is False
