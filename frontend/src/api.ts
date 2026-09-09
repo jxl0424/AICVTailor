@@ -315,3 +315,94 @@ export const tailorApi = {
   texUrl: (id: number) => `/api/tailored/${id}/download.tex`,
   pdfUrl: (id: number) => `/api/tailored/${id}/download.pdf`,
 };
+
+// --- applications -----------------------------------------------------------
+
+export const APPLICATION_STATUSES = [
+  "saved",
+  "applied",
+  "screening",
+  "interview_1",
+  "interview_2",
+  "take_home",
+  "offer",
+  "rejected",
+  "ghosted",
+  "withdrawn",
+] as const;
+
+export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
+
+export interface ApplicationRow {
+  id: number;
+  company: string;
+  role: string;
+  jd_id: number | null;
+  tailored_resume_id: number | null;
+  status: ApplicationStatus;
+  applied_on: string | null;
+  source: string | null;
+  salary_range: string | null;
+  contact_name: string | null;
+  next_action: string | null;
+  next_action_date: string | null;
+  notes: string | null;
+  created_at: string;
+  last_movement_at: string;
+  days_since_movement: number;
+  stale: boolean;
+}
+
+export interface CompanyHistory {
+  company: string;
+  applications: number;
+  statuses: string[];
+  last_applied: string | null;
+  responded: number;
+}
+
+export interface ApplicationStats {
+  total: number;
+  sent: number;
+  responded: number;
+  interviewed: number;
+  offers: number;
+  active: number;
+  stale: number;
+  response_rate: number;
+  interview_rate: number;
+  offer_rate: number;
+  by_status: Record<string, number>;
+  per_company: CompanyHistory[];
+  definitions: Record<string, string>;
+}
+
+export const applicationApi = {
+  list: (filters: { status?: string; company?: string; stale_only?: boolean } = {}) => {
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(filters)) {
+      if (v !== undefined && v !== "" && v !== false) params.set(k, String(v));
+    }
+    const q = params.toString();
+    return request<ApplicationRow[]>(`/api/applications${q ? `?${q}` : ""}`);
+  },
+  create: (body: { company: string; role: string; status?: string }) =>
+    request<ApplicationRow>("/api/applications", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  fromTailored: (tailored_id: number) =>
+    request<ApplicationRow>("/api/applications/from-tailored", {
+      method: "POST",
+      body: JSON.stringify({ tailored_id }),
+    }),
+  update: (id: number, patch: Partial<ApplicationRow>) =>
+    request<ApplicationRow>(`/api/applications/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+  remove: (id: number) =>
+    request<{ deleted: number }>(`/api/applications/${id}`, { method: "DELETE" }),
+  stats: () => request<ApplicationStats>("/api/applications/stats"),
+  csvUrl: () => "/api/applications/export.csv",
+};

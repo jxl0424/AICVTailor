@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import health as health_probes
 from . import paths
 from .api.analysis import router as analysis_router
+from .api.applications import router as applications_router
 from .api.health import router as health_router
 from .api.suggestions import router as suggestions_router
 from .api.tailoring import router as tailoring_router
@@ -67,6 +68,7 @@ def create_app() -> FastAPI:
     app.include_router(analysis_router)
     app.include_router(suggestions_router)
     app.include_router(tailoring_router)
+    app.include_router(applications_router)
     return app
 
 

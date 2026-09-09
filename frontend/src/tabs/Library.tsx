@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   ApiError,
   analysisApi,
+  applicationApi,
   tailorApi,
   type JDRow,
   type LibraryFilters,
@@ -173,6 +174,23 @@ export function Library() {
                         </a>
                       </>
                     )}
+                    <span className="text-ink-700"> · </span>
+                    <button
+                      className="text-accent hover:underline"
+                      title="Start tracking this application"
+                      onClick={() =>
+                        applicationApi
+                          .fromTailored(row.id)
+                          .then((a) =>
+                            setNote(`Tracking ${a.company} — ${a.role} on the Applications tab.`),
+                          )
+                          .catch((err) =>
+                            setError(err instanceof ApiError ? err.message : String(err)),
+                          )
+                      }
+                    >
+                      track
+                    </button>
                     <span className="text-ink-700"> · </span>
                     {duplicating === row.id ? (
                       <select
