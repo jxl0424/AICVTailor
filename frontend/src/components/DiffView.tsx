@@ -5,7 +5,15 @@ import type { ChangedSpan } from "../api";
  * word-level highlighting. Every change shows the JD terms it targeted and the
  * source bullet it came from -- that traceability is the point of the view.
  */
-export function DiffView({ changes }: { changes: ChangedSpan[] }) {
+export function DiffView({
+  changes,
+  onReject,
+  rejecting,
+}: {
+  changes: ChangedSpan[];
+  onReject?: (targetId: string) => void;
+  rejecting?: string | null;
+}) {
   if (changes.length === 0) {
     return (
       <p className="text-sm text-ink-400">
@@ -43,6 +51,16 @@ export function DiffView({ changes }: { changes: ChangedSpan[] }) {
                     <span className="text-ink-400">
                       targeting {change.target_terms.filter(Boolean).join(", ")}
                     </span>
+                  )}
+                  {onReject && (
+                    <button
+                      className="ml-auto rounded border border-ink-700 px-1.5 py-0.5 text-ink-400 hover:border-bad hover:text-bad disabled:opacity-40"
+                      onClick={() => onReject(change.target_id)}
+                      disabled={rejecting !== null && rejecting !== undefined}
+                      title="Drop this change and regenerate, so the compile gate runs again"
+                    >
+                      {rejecting === change.target_id ? "regenerating…" : "reject"}
+                    </button>
                   )}
                 </div>
 

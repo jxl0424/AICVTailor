@@ -136,8 +136,18 @@ export interface MasterResumeRow {
   reason: string;
 }
 
+export interface JDRow {
+  id: number;
+  company: string | null;
+  role: string | null;
+  location: string | null;
+  ingested_at: string;
+  term_count: number;
+}
+
 export const analysisApi = {
   masters: () => request<MasterResumeRow[]>("/api/masters"),
+  jds: () => request<JDRow[]>("/api/jds"),
   importMasters: () =>
     request<{ count: number }>("/api/masters/import", { method: "POST" }),
   analyse: (body: { text?: string; url?: string; master_id?: number }) =>
@@ -253,10 +263,38 @@ export interface TailoredRow {
   changes: number;
   has_pdf: boolean;
   orphaned: boolean;
+  coverage_delta: number | null;
+}
+
+export interface LibraryFilters {
+  company?: string;
+  role?: string;
+  since?: string;
+  until?: string;
+  compiled_only?: boolean;
 }
 
 export const tailorApi = {
-  list: () => request<TailoredRow[]>("/api/tailored"),
+  list: (filters: LibraryFilters = {}) => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(filters)) {
+      if (value !== undefined && value !== "" && value !== false) {
+        params.set(key, String(value));
+      }
+    }
+    const query = params.toString();
+    return request<TailoredRow[]>(`/api/tailored${query ? `?${query}` : ""}`);
+  },
+  duplicate: (id: number, jd_id: number) =>
+    request<{ copied: string[]; stale: string[]; note: string }>(
+      `/api/tailored/${id}/duplicate`,
+      { method: "POST", body: JSON.stringify({ jd_id }) },
+    ),
+  rejectChange: (id: number, target_id: string) =>
+    request<TailorResult>(
+      `/api/tailored/${id}/reject-change?target_id=${encodeURIComponent(target_id)}`,
+      { method: "POST" },
+    ),
   run: (jd_id: number) =>
     request<TailorResult>("/api/tailor", {
       method: "POST",

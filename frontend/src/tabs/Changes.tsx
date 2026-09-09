@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { tailorApi, type TailorResult } from "../api";
+import { useCallback, useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { ApiError, tailorApi, type TailorResult } from "../api";
 import { DiffView } from "../components/DiffView";
 
 /**
@@ -7,9 +8,49 @@ import { DiffView } from "../components/DiffView";
  * off without a store. A per-tab convenience, not durable state.
  */
 export function Changes() {
+  const { id } = useParams();
   const [result, setResult] = useState<TailorResult | null>(null);
+  const [rejecting, setRejecting] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadStored = useCallback(async (tailoredId: number) => {
+    const detail = await tailorApi.get(tailoredId);
+    setResult({
+      run_id: "stored",
+      tailored_id: detail.id,
+      compiled: detail.compiled,
+      compile_error: detail.compile_error ?? "",
+      engine: "",
+      changes: detail.diff.changes,
+      reverted: [],
+      verification: {
+        ok: true,
+        pages: 0,
+        max_pages: null,
+        page_limit_ok: true,
+        grew: false,
+        extracted_chars: 0,
+        surviving_terms: [],
+        lost_terms: [],
+        forbidden_hits: [],
+        notes: [],
+        skipped: true,
+      },
+      coverage_before: detail.coverage_before ?? 0,
+      coverage_after: detail.coverage_after ?? 0,
+      document_guardrails: { ok: true, violations: [] },
+      warnings: [],
+      has_pdf: detail.has_pdf,
+      applied: detail.diff.changes.length,
+    });
+  }, []);
 
   useEffect(() => {
+    // An explicit id from the Library always wins over the in-session run.
+    if (id) {
+      void loadStored(Number(id)).catch(() => undefined);
+      return;
+    }
     try {
       const raw = sessionStorage.getItem("lastTailorRun");
       if (raw) {
@@ -24,40 +65,28 @@ export function Changes() {
     // most recent tailored version rather than an empty state.
     void tailorApi
       .list()
-      .then(async (rows) => {
-        if (rows.length === 0) return;
-        const detail = await tailorApi.get(rows[0].id);
-        setResult({
-          run_id: "stored",
-          tailored_id: detail.id,
-          compiled: detail.compiled,
-          compile_error: detail.compile_error ?? "",
-          engine: "",
-          changes: detail.diff.changes,
-          reverted: [],
-          verification: {
-            ok: true,
-            pages: 0,
-            max_pages: null,
-            page_limit_ok: true,
-            grew: false,
-            extracted_chars: 0,
-            surviving_terms: [],
-            lost_terms: [],
-            forbidden_hits: [],
-            notes: [],
-            skipped: true,
-          },
-          coverage_before: detail.coverage_before ?? 0,
-          coverage_after: detail.coverage_after ?? 0,
-          document_guardrails: { ok: true, violations: [] },
-          warnings: [],
-          has_pdf: detail.has_pdf,
-          applied: detail.diff.changes.length,
-        });
-      })
+      .then((rows) => (rows.length ? loadStored(rows[0].id) : undefined))
       .catch(() => undefined);
-  }, []);
+  }, [id, loadStored]);
+
+  async function reject(targetId: string) {
+    if (!result) return;
+    setRejecting(targetId);
+    setError(null);
+    try {
+      const rerun = await tailorApi.rejectChange(result.tailored_id, targetId);
+      setResult(rerun);
+      try {
+        sessionStorage.setItem("lastTailorRun", JSON.stringify(rerun));
+      } catch {
+        /* non-fatal */
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : String(err));
+    } finally {
+      setRejecting(null);
+    }
+  }
 
   if (!result) {
     return (
@@ -144,7 +173,11 @@ export function Changes() {
           </p>
         ))}
 
-      <DiffView changes={result.changes} />
+      {error && (
+        <p className="rounded border border-bad/40 bg-bad/5 p-2 text-xs text-bad">{error}</p>
+      )}
+
+      <DiffView changes={result.changes} onReject={reject} rejecting={rejecting} />
 
       {!v.skipped && (
         <p className="text-xs text-ink-600">
