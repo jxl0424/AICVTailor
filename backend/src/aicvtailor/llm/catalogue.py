@@ -25,6 +25,11 @@ log = logging.getLogger(__name__)
 
 CACHE_FILE = paths.CACHE_DIR / "nim_models.json"
 
+# A failed fetch is not cached to disk, so without this the network is retried
+# on every request -- at a 10s timeout that is 10s added to each analysis.
+FAILED_FETCH_COOLDOWN_SECONDS = 300
+_last_failure_at: float = 0.0
+
 
 @dataclass(frozen=True, slots=True)
 class Resolution:
@@ -101,11 +106,16 @@ def fetch_catalogue(*, force: bool = False, client: httpx.Client | None = None) 
     if not settings.nvidia_api_key:
         return load_cached()
 
+    global _last_failure_at
+    if not force and time.time() - _last_failure_at < FAILED_FETCH_COOLDOWN_SECONDS:
+        log.debug("skipping catalogue fetch; last attempt failed recently")
+        return load_cached()
+
     url = settings.nim_base_url.rstrip("/") + "/models"
     headers = {"Authorization": f"Bearer {settings.nvidia_api_key}"}
     try:
         owns_client = client is None
-        client = client or httpx.Client(timeout=10.0)
+        client = client or httpx.Client(timeout=8.0)
         try:
             resp = client.get(url, headers=headers)
             resp.raise_for_status()
@@ -114,9 +124,14 @@ def fetch_catalogue(*, force: bool = False, client: httpx.Client | None = None) 
             if owns_client:
                 client.close()
     except Exception as exc:  # noqa: BLE001 -- any failure falls back to cache
+        _last_failure_at = time.time()
         cached = load_cached()
         log.warning(
-            "model catalogue fetch failed (%s); using %d cached ids", exc, len(cached)
+            "model catalogue fetch failed (%s); using %d cached ids. "
+            "Not retrying for %ds.",
+            exc,
+            len(cached),
+            FAILED_FETCH_COOLDOWN_SECONDS,
         )
         return cached
 

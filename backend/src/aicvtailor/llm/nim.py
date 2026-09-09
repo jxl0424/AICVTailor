@@ -31,6 +31,10 @@ class NIMProvider(OpenAICompatProvider):
             client = OpenAI(
                 base_url=settings.nim_base_url,
                 api_key=settings.nvidia_api_key or "missing",
+                # Without a bound timeout a stalled provider stalls the whole
+                # request. Rewrites are short; a minute is generous.
+                timeout=60.0,
+                max_retries=0,  # retries and backoff are handled in this layer
             )
 
         roles = get_model_prefs().get("roles", {})

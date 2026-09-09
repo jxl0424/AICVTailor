@@ -30,11 +30,35 @@ BUILDERS = {
 FALLBACK_ORDER = ("nim", "ollama", "claude_cli")
 
 
-def build(name: str, *, runlog: RunLog | None = None) -> LLMProvider:
+# Constructing a provider resolves its models and can fetch the catalogue, so
+# it must not happen on every request. Keyed by name; the run log is attached
+# per call rather than baked in.
+_CACHE: dict[str, LLMProvider] = {}
+
+
+def clear_cache() -> None:
+    """Drop cached providers, so a config change is picked up."""
+    _CACHE.clear()
+
+
+def build(
+    name: str, *, runlog: RunLog | None = None, use_cache: bool = True
+) -> LLMProvider:
     builder = BUILDERS.get(name)
     if builder is None:
         raise ProviderUnavailable(f"unknown provider '{name}'")
-    return builder(runlog=runlog)
+
+    if use_cache and name in _CACHE:
+        provider = _CACHE[name]
+        # Point the cached provider at this run's log.
+        if runlog is not None and hasattr(provider, "_runlog"):
+            provider._runlog = runlog
+        return provider
+
+    provider = builder(runlog=runlog)
+    if use_cache:
+        _CACHE[name] = provider
+    return provider
 
 
 def availability_report() -> dict[str, Availability]:

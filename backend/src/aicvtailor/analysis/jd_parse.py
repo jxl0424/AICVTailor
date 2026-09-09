@@ -164,9 +164,11 @@ def parse(text: str, provider=None, *, runlog=None) -> ParsedJD:
     """
     parsed = parse_regex(text)
 
-    gaps = [f for f in ("company", "role", "location") if getattr(parsed, f) in (None, "")]
-    weak = [f for f in ("role",) if parsed.resolved_by.get(f) == "regex:first-line"]
-    wanted = gaps + [f for f in weak if f not in gaps]
+    # Only ask a model about fields regex could not find at all. An earlier
+    # version also re-checked any role taken from the first line, which is
+    # almost every posting -- so a network round trip ran on nearly every
+    # analysis to second-guess a field that was already correct.
+    wanted = [f for f in ("company", "role", "location") if getattr(parsed, f) in (None, "")]
 
     if not wanted or provider is None:
         return parsed
