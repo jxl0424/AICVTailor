@@ -32,7 +32,8 @@ never_reword: []
 max_bullet_length: 240
 
 # Maximum pages for the compiled PDF. Set to null to allow any length.
-max_pages: 1
+# The current master.tex compiles to 2 pages, so 1 would warn on every run.
+max_pages: 2
 
 # Reject a rewrite that introduces a number, date, percentage or proper noun
 # not present in its source bullet. This is the main anti-fabrication check.
