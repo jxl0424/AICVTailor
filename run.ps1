@@ -8,8 +8,42 @@
 # The ExecutionPolicy flag is usually needed: Windows blocks unsigned scripts by
 # default, and that block is silent enough to look like nothing happened.
 
+# Applies to cmdlets. Native commands are checked by exit code instead, via
+# Invoke-Native below -- with Stop in force, any tool that merely writes a
+# warning to stderr would abort the script.
 $ErrorActionPreference = "Stop"
 Set-Location -Path $PSScriptRoot
+
+function Invoke-Native {
+    <#
+      Run an external command, tolerating stderr output, and fail only on a
+      non-zero exit code. Returns the exit code when -AllowFailure is set.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$Exe,
+        [string[]]$Arguments = @(),
+        [switch]$AllowFailure,
+        [switch]$Quiet
+    )
+
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        if ($Quiet) {
+            & $Exe @Arguments *> $null
+        } else {
+            & $Exe @Arguments 2>&1 | ForEach-Object { "$_" }
+        }
+        $code = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+
+    if ($code -ne 0 -and -not $AllowFailure) {
+        throw "$Exe exited with code $code"
+    }
+    return $code
+}
 
 $Venv = Join-Path $PSScriptRoot ".venv"
 $Scripts = Join-Path $Venv "Scripts"          # Windows venv layout, not bin/
@@ -77,31 +111,36 @@ if (-not (Test-Path $Py)) {
     $FirstRun = $true
     Write-Host "==> first run: setting up. This takes a couple of minutes."
     Write-Host "    creating virtualenv"
-    & (Find-Python) -m venv $Venv
-    & $Pip install --quiet --upgrade pip
+    Invoke-Native -Exe (Find-Python) -Arguments @("-m", "venv", $Venv) | Out-Null
+    # Not $Pip: pip.exe cannot replace itself on Windows while it is running.
+    Invoke-Native -Exe $Py -Arguments @("-m", "pip", "install", "--upgrade", "pip") -Quiet -AllowFailure | Out-Null
 }
 
-& $Py -c "import aicvtailor" 2>$null
-if ($LASTEXITCODE -ne 0) {
+# Expected to fail before the first install; that is what it is asking.
+$installed = Invoke-Native -Exe $Py -Arguments @("-c", "import aicvtailor") -Quiet -AllowFailure
+if ($installed -ne 0) {
     $FirstRun = $true
     Write-Host "    installing Python dependencies (this is the slow one)"
-    & $Pip install -e ".[dev]"
+    Invoke-Native -Exe $Py -Arguments @("-m", "pip", "install", "-e", ".[dev]") | Out-Null
 }
 
 if (-not (Test-Path "frontend\node_modules")) {
     $FirstRun = $true
     Write-Host "    installing frontend dependencies"
     Push-Location frontend
-    try { & cmd /c "npm install --no-fund --no-audit" } finally { Pop-Location }
+    try {
+        Invoke-Native -Exe "cmd.exe" -Arguments @("/c", "npm install --no-fund --no-audit") | Out-Null
+    } finally { Pop-Location }
 }
 
 if ($FirstRun) { Write-Host "==> setup done" }
 
 Write-Host "==> preparing database"
-& (Join-Path $Scripts "aicvtailor.exe") init-db
+Invoke-Native -Exe (Join-Path $Scripts "aicvtailor.exe") -Arguments @("init-db") | Out-Null
 
 Write-Host "==> component check"
-& (Join-Path $Scripts "aicvtailor.exe") doctor
+# Exits non-zero when no provider is usable yet, which is a finding, not a fault.
+Invoke-Native -Exe (Join-Path $Scripts "aicvtailor.exe") -Arguments @("doctor") -AllowFailure | Out-Null
 
 # --- ports ------------------------------------------------------------------
 function Test-PortInUse([int]$Port) {
