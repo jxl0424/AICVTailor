@@ -65,7 +65,7 @@ terms:
 
   - canonical: MLOps
     category: domain
-    synonyms: ["ml ops", "ml infrastructure", "model deployment", "model serving"]
+    synonyms: ["ml ops", "ml infrastructure", "ml platform"]
 
   - canonical: Stakeholder communication
     category: soft_skill
@@ -111,6 +111,122 @@ terms:
   - canonical: Chunking
     category: method
     synonyms: ["chunking strategies", "text splitting", "document chunking"]
+
+  - canonical: TensorFlow
+    category: tool
+    synonyms: [keras, tf, "tensor flow"]
+
+  - canonical: scikit-learn
+    category: tool
+    synonyms: [sklearn, "sci-kit learn", "scikit learn"]
+
+  - canonical: Machine learning
+    category: domain
+    synonyms: [ml, "supervised learning", "unsupervised learning",
+               "statistical learning", "predictive modelling", "predictive modeling"]
+
+  - canonical: Deep learning
+    category: domain
+    synonyms: ["neural networks", "neural network", cnn, cnns, rnn, rnns,
+               transformers, "deep neural"]
+
+  - canonical: NLP
+    category: domain
+    synonyms: ["natural language processing", "text processing",
+               "language models", "text mining"]
+
+  - canonical: Information retrieval
+    category: domain
+    synonyms: [ir, "search technology", "search relevance", "ranking",
+               "document retrieval"]
+
+  - canonical: Recommender systems
+    category: domain
+    synonyms: ["recommendation systems", "recommendation engine",
+               "recommender", "collaborative filtering"]
+
+  - canonical: AI agents
+    category: method
+    synonyms: ["agentic", "agent frameworks", "autonomous agents",
+               "tool use", "function calling", "multi-agent"]
+
+  - canonical: Git
+    category: tool
+    synonyms: [github, gitlab, "version control", "source control"]
+
+  - canonical: APIs
+    category: hard_skill
+    synonyms: ["rest api", "rest apis", "api design", "restful", "graphql",
+               "api development", "web services"]
+
+  - canonical: Data pipelines
+    category: method
+    synonyms: [etl, elt, "data engineering", airflow, dagster, "batch processing",
+               "data ingestion"]
+
+  - canonical: Cloud platforms
+    category: tool
+    synonyms: [aws, azure, gcp, "google cloud", "cloud services",
+               "cloud ai services", sagemaker, bedrock, "vertex ai"]
+
+  - canonical: Testing
+    category: method
+    synonyms: [pytest, unittest, "unit tests", "unit testing", "test coverage",
+               "automated tests", "integration tests", tdd]
+
+  - canonical: Debugging
+    category: hard_skill
+    synonyms: [troubleshooting, "root cause analysis", profiling]
+
+  - canonical: Software engineering practices
+    category: method
+    synonyms: ["code review", "code reviews", "clean code", "design patterns",
+               "software engineering", "best practices", "pair programming"]
+
+  - canonical: Agile
+    category: method
+    synonyms: [scrum, kanban, "sprint planning", "agile methodologies"]
+
+  - canonical: SQL
+    category: hard_skill
+    synonyms: [mysql, sqlite, "relational databases", queries, "database design"]
+
+  - canonical: Data analysis
+    category: method
+    synonyms: [pandas, numpy, "exploratory data analysis", eda, "data wrangling",
+               "statistical analysis", visualisation, visualization]
+
+  - canonical: Model deployment
+    category: method
+    synonyms: ["model serving", "inference", "production models", "shipping models",
+               "productionising", "productionizing"]
+
+  - canonical: Experimentation
+    category: method
+    synonyms: ["a/b testing", "ab testing", "hypothesis testing", "experiment design",
+               "ablation", "benchmarking"]
+
+  - canonical: Distributed training
+    category: method
+    synonyms: ["multi-gpu", "gpu training", "hpc", "high performance computing",
+               "parallel computing", "cluster"]
+
+  - canonical: Reinforcement learning
+    category: domain
+    synonyms: [rl, "deep rl", "policy gradient", "q-learning"]
+
+  - canonical: Computer vision
+    category: domain
+    synonyms: [cv, "image processing", opencv, "object detection",
+               "image classification"]
+
+  - canonical: Documentation
+    category: soft_skill
+    synonyms: ["technical writing", "writing documentation", "documenting"]
+
+  - canonical: Problem solving
+    category: soft_skill
+    synonyms: ["analytical thinking", "critical thinking", "first principles"]
 
 # Terms that look like skills but are boilerplate noise. Dropped before ranking.
 stoplist:

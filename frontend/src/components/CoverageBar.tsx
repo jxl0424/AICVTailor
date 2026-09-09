@@ -21,7 +21,12 @@ export function CoverageBar({ coverage }: { coverage: Coverage }) {
     <div className="rounded border border-ink-700 bg-ink-900 p-3">
       <div className="flex items-baseline gap-3">
         <span className="text-2xl tabular-nums text-ink-50">{coverage.percent}%</span>
-        <span className="text-xs text-ink-400">JD keyword coverage</span>
+        <span className="text-xs text-ink-400">
+          JD keyword coverage
+          {coverage.terms_scored > 0 && (
+            <span className="text-ink-600"> over {coverage.terms_scored} terms</span>
+          )}
+        </span>
         <button
           className="ml-auto text-xs text-accent hover:underline"
           onClick={() => setShowMaths((v) => !v)}

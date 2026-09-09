@@ -41,11 +41,16 @@ class CategoryCoverage:
         return 100.0 * self.covered_weight / self.total_weight if self.total_weight else 0.0
 
 
+# Below this, the figure is computed over too few terms to mean much.
+MIN_TERMS_FOR_A_MEANINGFUL_FIGURE = 8
+
+
 @dataclass
 class Coverage:
     percent: float
     covered_weight: float
     total_weight: float
+    terms_scored: int = 0
     by_category: list[CategoryCoverage] = field(default_factory=list)
     counts: dict[str, int] = field(default_factory=dict)
     credit_scheme: dict[str, float] = field(default_factory=dict)
@@ -89,6 +94,7 @@ def compute(
         bucket.term_count += 1
 
     return Coverage(
+        terms_scored=sum(by_category[c].term_count for c in by_category),
         percent=round(100.0 * covered / total, 1) if total else 0.0,
         covered_weight=round(covered, 3),
         total_weight=round(total, 3),

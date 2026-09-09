@@ -93,6 +93,7 @@ export interface CategoryCoverage {
 
 export interface Coverage {
   percent: number;
+  terms_scored: number;
   covered_weight: number;
   total_weight: number;
   by_category: CategoryCoverage[];

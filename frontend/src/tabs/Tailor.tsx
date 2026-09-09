@@ -239,9 +239,28 @@ export function Tailor() {
                     : `Apply ${acceptedCount} accepted change(s)`
                 }
               >
-                {tailoring ? "tailoring…" : `Tailor (${acceptedCount})`}
+                {tailoring
+                  ? "tailoring…"
+                  : acceptedCount === 0
+                    ? "Tailor"
+                    : `Tailor (${acceptedCount})`}
               </button>
             </div>
+
+            {suggestions.length === 0 && (
+              <p className="rounded border border-accent/30 bg-accent/5 p-2 text-xs text-ink-200">
+                <strong>Next:</strong> click <em>Generate suggestions</em>. Nothing is
+                rewritten until you accept a suggestion and press Tailor.
+              </p>
+            )}
+
+            {suggestions.length > 0 && acceptedCount === 0 && (
+              <p className="rounded border border-accent/30 bg-accent/5 p-2 text-xs text-ink-200">
+                <strong>Next:</strong> accept the suggestions you want on the
+                suggestions tab, then press Tailor. GAP rows cannot be accepted -
+                nothing in your CV supports them.
+              </p>
+            )}
 
             {tailorNote && (
               <p className="rounded border border-ok/40 bg-ok/5 p-2 text-xs text-ok">

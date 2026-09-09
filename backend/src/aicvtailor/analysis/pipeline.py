@@ -165,6 +165,23 @@ def analyse(
     )
     runlog.write("coverage", percent=report.percent, backend=similarity.name)
 
+    # A high percentage over four recognised terms says more about the
+    # dictionary than about the resume. Say so rather than let the number
+    # stand on its own.
+    if report.terms_scored < coverage_mod.MIN_TERMS_FOR_A_MEANINGFUL_FIGURE:
+        warnings.append(
+            f"Coverage is computed over only {report.terms_scored} recognised "
+            f"term(s), so treat {report.percent}% as unreliable. This posting uses "
+            "vocabulary config/skills.yaml does not know -- see the unrecognised "
+            "phrases below and add the real skills among them."
+        )
+    elif len(unknown) > report.terms_scored:
+        warnings.append(
+            f"{len(unknown)} repeated phrases were not recognised, against "
+            f"{report.terms_scored} that were. The figure may be measuring a "
+            "narrow slice of what this posting actually asks for."
+        )
+
     if similarity.name == "lexical":
         warnings.append(
             "Semantic matching is using the lexical fallback. Terms your resume "

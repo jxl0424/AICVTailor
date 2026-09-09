@@ -210,3 +210,51 @@ class TestAgainstTheRealCV:
 
         by_term = {r.term.canonical: r.match for r in result.ranked}
         assert by_term["Kubernetes"].status is MatchStatus.MISSING
+
+
+class TestCoverageHonesty:
+    """A percentage over four recognised terms says more about the dictionary
+    than about the resume. The figure has to admit when it is thin."""
+
+    @pytest.fixture
+    def resume(self):
+        return parse(FIXTURE.read_text(encoding="utf-8"))
+
+    def test_a_posting_the_dictionary_does_not_know_is_flagged(self, resume):
+        result = analyse(
+            "Widget Wrangler\n\nRequirements\n- Frobnication\n- Grommet calibration\n",
+            resume,
+        )
+        assert result.coverage.terms_scored < 8
+        assert any("unreliable" in w for w in result.warnings)
+
+    def test_a_normal_posting_is_not_flagged(self, resume):
+        result = analyse(JD.read_text(encoding="utf-8"), resume)
+        assert result.coverage.terms_scored >= 8
+        assert not any("unreliable" in w for w in result.warnings)
+
+    def test_the_sample_size_is_reported(self, resume):
+        result = analyse(JD.read_text(encoding="utf-8"), resume)
+        assert result.coverage.terms_scored == len(
+            [r for r in result.ranked if r.weight.weight > 0]
+        )
+
+    def test_the_dictionary_covers_common_ai_role_vocabulary(self):
+        """Regression: a real graduate AI posting naming TensorFlow,
+        scikit-learn, Git, APIs, machine learning and information retrieval
+        matched four terms, and reported 87.5%."""
+        from aicvtailor.analysis.terms import SkillDictionary
+
+        dictionary = SkillDictionary()
+        for term in (
+            "TensorFlow",
+            "scikit-learn",
+            "Git",
+            "machine learning",
+            "information retrieval",
+            "recommendation systems",
+            "data pipelines",
+            "APIs",
+            "NLP",
+        ):
+            assert dictionary.normalise(term), f"skills.yaml does not know {term!r}"
