@@ -43,11 +43,31 @@ function Find-Python {
         $cmd = Get-Command $candidate -ErrorAction SilentlyContinue
         if ($cmd) { return $cmd.Source }
     }
-    throw "Python 3.11+ was not found on PATH. Install it from python.org and reopen the terminal."
+    return $null
 }
 
+# Report everything that is missing at once. Finding out about one prerequisite,
+# installing it, and then finding out about the next is a bad first experience.
+$missing = @()
+if (-not (Find-Python)) {
+    $missing += "  Python 3.11+   winget install Python.Python.3.12    (or python.org)"
+}
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-    throw "Node.js was not found on PATH. Install it from nodejs.org and reopen the terminal."
+    $missing += "  Node.js LTS    winget install OpenJS.NodeJS.LTS     (or nodejs.org)"
+}
+
+if ($missing.Count -gt 0) {
+    Write-Host ""
+    Write-Host "Missing prerequisites:" -ForegroundColor Red
+    $missing | ForEach-Object { Write-Host $_ }
+    Write-Host ""
+    Write-Host "Install them, then CLOSE AND REOPEN this terminal so PATH refreshes."
+    Write-Host "PyCharm caches PATH per terminal tab, so a new tab is not always enough --"
+    Write-Host "restart PyCharm if 'node --version' still fails after installing."
+    Write-Host ""
+    Write-Host "Optional, for PDF output: MiKTeX from miktex.org. Without it the app"
+    Write-Host "still runs and produces a tailored .tex, and says so in the health check."
+    exit 1
 }
 
 # --- setup ------------------------------------------------------------------
