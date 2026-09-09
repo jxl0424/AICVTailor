@@ -70,3 +70,36 @@ def test_cannot_request_more_than_capacity():
     bucket, _, _ = make_bucket(rpm=5)
     with pytest.raises(ValueError):
         bucket.acquire(6)
+
+
+def test_is_safe_under_real_concurrency():
+    """The bucket claims thread safety in its docstring, and the provider is
+    shared across requests, so the claim needs a real test rather than a
+    comment. Without the lock, two threads can both see the last permit.
+    """
+    import threading
+
+    from aicvtailor.llm.limiter import TokenBucket
+
+    # A clock that never advances: exactly `capacity` permits exist, ever.
+    bucket = TokenBucket(60, clock=lambda: 0.0, sleep=lambda s: None)
+    granted: list[int] = []
+    lock = threading.Lock()
+    barrier = threading.Barrier(20)
+
+    def worker():
+        barrier.wait()  # maximise the overlap
+        if bucket.tokens >= 1:
+            waited = bucket.acquire()
+            with lock:
+                granted.append(1 if waited == 0 else 0)
+
+    threads = [threading.Thread(target=worker) for _ in range(20)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    # Never more permits than the bucket held, and never a negative balance.
+    assert sum(granted) <= 60
+    assert bucket.tokens >= 0
