@@ -20,7 +20,17 @@ def utcnow() -> datetime:
 
 
 class SuggestionStatus(str, Enum):
-    PRESENT = "present"
+    """Mirrors analysis.match.MatchStatus exactly.
+
+    These two vocabularies drifted: the matcher distinguishes an exact hit from
+    a synonym hit, while this enum only had a single PRESENT. Writing a
+    RELOCATE suggestion (status 'present_exact') therefore stored a value the
+    column could not read back, and the endpoint failed with a 500 the moment
+    the skills dictionary grew enough for relocations to fire.
+    """
+
+    PRESENT_EXACT = "present_exact"
+    PRESENT_AS_SYNONYM = "present_as_synonym"
     IMPLIED = "implied"
     MISSING = "missing"
 

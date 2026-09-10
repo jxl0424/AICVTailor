@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -19,6 +21,8 @@ from ..llm.registry import get_provider
 from ..llm.runlog import RunLog
 from ..models import JobDescription, MasterResume, Suggestion as SuggestionRow
 from ..suggest import GapSuggestion, RewordSuggestion, as_dict, generate
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["suggestions"])
 
@@ -103,9 +107,19 @@ def create_suggestions(request: SuggestRequest) -> dict[str, Any]:
         provider_error = str(exc)
         runlog.write("provider", available=False, error=provider_error)
 
-    suggestions = generate(
-        ranked, document, provider=provider, runlog=runlog, limit=request.limit
-    )
+    try:
+        suggestions = generate(
+            ranked, document, provider=provider, runlog=runlog, limit=request.limit
+        )
+    except Exception as exc:  # noqa: BLE001 -- report, do not 500
+        # Gaps and relocations need no provider at all, so a broken one should
+        # cost the rewrites, not the whole request.
+        log.warning("suggestion generation failed with a provider (%s); retrying without", exc)
+        provider_error = f"{provider_error} {exc}".strip()
+        provider = None
+        suggestions = generate(
+            ranked, document, provider=None, runlog=runlog, limit=request.limit
+        )
 
     with Session(get_engine()) as session:
         session.exec(delete(SuggestionRow).where(SuggestionRow.jd_id == request.jd_id))

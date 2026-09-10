@@ -213,9 +213,31 @@ def _reword_for(
     if bullet is None:
         return _gap_for(ranked, "the bullet that implied this term is no longer in the resume")
 
-    proposed, report = rewrite_bullet(
-        provider, bullet.text, [ranked.canonical], rails=rails, runlog=runlog
-    )
+    try:
+        proposed, report = rewrite_bullet(
+            provider, bullet.text, [ranked.canonical], rails=rails, runlog=runlog
+        )
+    except Exception as exc:  # noqa: BLE001 -- one bad call must not sink the run
+        # The usual cause is a model id the endpoint does not serve, which is
+        # exactly what the unverified fallbacks resolve to. Degrade to a gap
+        # that says so; the other suggestions are still worth having.
+        log.warning("rewrite call failed for %s: %s", ranked.canonical, exc)
+        if runlog is not None:
+            runlog.write("rewrite", term=ranked.canonical, ok=False, error=str(exc))
+        return GapSuggestion(
+            term=ranked.canonical,
+            category=ranked.term_category,
+            weight=ranked.weight.weight,
+            status=ranked.match.status.value,
+            rationale=(
+                f"{bullet.id} implies this, but the rewrite could not be generated: "
+                f"{exc}"
+            ),
+            what_it_would_take=(
+                "Check the provider: `aicvtailor models --refresh` shows which model "
+                "each role resolved to, and whether the endpoint actually serves it."
+            ),
+        )
 
     if proposed.strip() == bullet.text.strip():
         # The model was told to leave the bullet alone when it does not
