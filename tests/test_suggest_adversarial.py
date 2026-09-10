@@ -367,3 +367,65 @@ class TestAgainstTheRealCV:
         )
         for suggestion in applicable(suggestions):
             assert suggestion.target_id in editable
+
+
+class TestActionableSuggestionsSurvive:
+    """A posting demanding a lot the resume lacks produced twelve gaps, zero
+    applicable suggestions, and a permanently disabled Tailor button -- while
+    real relocations went ungenerated. The combined limit was applied to a
+    weight-sorted list, so advisory gaps crowded out everything actionable.
+    """
+
+    @pytest.fixture
+    def document(self):
+        return parse(FIXTURE.read_text(encoding="utf-8"))
+
+    def _many_missing(self):
+        return [ranked(f"MissingSkill{i}", MatchStatus.MISSING) for i in range(20)]
+
+    def test_gaps_do_not_crowd_out_a_relocation(self, document):
+        skills = next(iter(document.skill_lines()))
+        buried = skills.values[-1]
+
+        term = ranked(buried, MatchStatus.PRESENT_EXACT)
+        term.match.location = ResumeLocation.SKILLS
+
+        suggestions = generate(
+            [*self._many_missing(), term], document, provider=None, rails=rails(), limit=12
+        )
+        assert applicable(suggestions), "the relocation was crowded out by gaps"
+        assert any(s.term == buried for s in applicable(suggestions))
+
+    def test_the_limit_is_still_respected(self, document):
+        suggestions = generate(self._many_missing(), document, provider=None, rails=rails(), limit=12)
+        assert len(suggestions) == 12
+
+    def test_rewrites_are_capped_separately_from_the_limit(self, document):
+        """Each rewrite costs a model call, so that budget is bounded on its
+        own rather than by the display limit."""
+        bullets = list(document.bullets())
+        provider = ScriptedProvider(*[b.text + " and retrieval" for b in bullets])
+        terms = [
+            ranked(f"term{i}", MatchStatus.IMPLIED, bullet_id=b.id)
+            for i, b in enumerate(bullets)
+        ]
+
+        generate(terms, document, provider=provider, rails=rails(), max_rewrites=2)
+        assert len(provider.calls) == 2
+
+    def test_a_skill_already_leading_its_line_is_not_relocated(self, document):
+        skills = next(iter(document.skill_lines()))
+        term = ranked(skills.values[0], MatchStatus.PRESENT_EXACT)
+        term.match.location = ResumeLocation.SKILLS
+
+        suggestions = generate([term], document, provider=None, rails=rails())
+        assert not applicable(suggestions), "it is already first; there is nothing to move"
+
+    def test_a_low_weight_skill_still_gets_a_relocation(self, document):
+        """An absolute weight cut silently dropped every nice-to-have. The
+        posting naming the skill is the signal."""
+        skills = next(iter(document.skill_lines()))
+        term = ranked(skills.values[-1], MatchStatus.PRESENT_EXACT, weight_section=SectionKind.NICE_TO_HAVE)
+        term.match.location = ResumeLocation.SKILLS
+
+        assert applicable(generate([term], document, provider=None, rails=rails()))

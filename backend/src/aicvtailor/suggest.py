@@ -40,8 +40,11 @@ log = logging.getLogger(__name__)
 
 # Below this weight a term is not worth spending a rewriter call on.
 MIN_WEIGHT_FOR_REWORD = 1.0
-# A skills-block entry this far down the list counts as buried.
-BURIED_POSITION = 3
+# A skills line leads with whatever you happened to type first. If a posting
+# names a skill you have and it is not already leading its line, promoting it
+# is a truthful edit: it reorders what you already wrote and invents nothing.
+# No weight threshold -- the posting mentioning it at all is the signal, and an
+# absolute cut silently dropped every nice-to-have.
 
 
 class RewriteResponse(BaseModel):
@@ -301,7 +304,8 @@ def _relocate_for(ranked: RankedTerm, document: Document) -> RelocateSuggestion 
             if ranked.canonical.casefold() in value.casefold()
             or value.casefold() in ranked.canonical.casefold()
         ]
-        if not matches or matches[0] < BURIED_POSITION:
+        # Already leading the line, or too minor for this posting to care.
+        if not matches or matches[0] == 0:
             continue
 
         position = matches[0]
@@ -315,8 +319,10 @@ def _relocate_for(ranked: RankedTerm, document: Document) -> RelocateSuggestion 
             weight=ranked.weight.weight,
             status=ranked.match.status.value,
             rationale=(
-                f"Listed {position + 1}th under '{line.label}'. This posting weights it "
-                f"at {ranked.weight.weight:.2f}, so it should lead the line."
+                f"Listed {position + 1}{'st' if position == 0 else 'nd' if position == 1 else 'rd' if position == 2 else 'th'}"
+                f" under '{line.label}'. This posting weights it at "
+                f"{ranked.weight.weight:.2f}, so it should lead the line. "
+                "Reordering only; nothing is added or removed."
             ),
             source_line_id=line.id,
             original_text=original,
@@ -349,45 +355,75 @@ def generate(
     rails: dict[str, Any] | None = None,
     runlog: RunLog | None = None,
     limit: int = 12,
+    max_rewrites: int = 6,
 ) -> list[Suggestion]:
-    """Turn ranked terms into suggestions, highest weight first."""
+    """Turn ranked terms into suggestions.
+
+    Actionable suggestions are collected first, then gaps fill what is left.
+    Applying one combined limit to a weight-sorted list let advisory gaps crowd
+    out the only things you can act on: a posting demanding a lot the resume
+    lacks produced twelve gaps, zero applicable suggestions, and a permanently
+    disabled Tailor button, while real relocations went ungenerated.
+
+    Rewrites cost a model call each, so they are capped separately.
+    Relocations are deterministic and free, so they are not.
+    """
     rails = rails if rails is not None else get_guardrails()
     runlog = runlog or RunLog()
-    suggestions: list[Suggestion] = []
+
+    actionable: list[Suggestion] = []
+    gaps: list[Suggestion] = []
+    rewrites_made = 0
 
     for ranked in sorted(ranked_terms, key=lambda r: -r.weight.weight):
-        if len(suggestions) >= limit:
-            break
-
         status = ranked.match.status
 
         if status is MatchStatus.IMPLIED and ranked.weight.weight >= MIN_WEIGHT_FOR_REWORD:
             if provider is None:
-                suggestions.append(
+                gaps.append(
                     _gap_for(
                         ranked,
                         f"{ranked.match.bullet_id} implies this, but no LLM provider is "
                         "available to draft a rewrite.",
                     )
                 )
+            elif rewrites_made >= max_rewrites:
+                gaps.append(
+                    _gap_for(
+                        ranked,
+                        f"{ranked.match.bullet_id} implies this, but the per-run rewrite "
+                        f"limit of {max_rewrites} was already reached. Reject a rewrite "
+                        "above and regenerate to spend the budget here instead.",
+                    )
+                )
             else:
-                suggestions.append(_reword_for(ranked, document, provider, rails, runlog))
+                rewrites_made += 1
+                result = _reword_for(ranked, document, provider, rails, runlog)
+                (actionable if isinstance(result, RewordSuggestion) else gaps).append(result)
             continue
 
         if status is MatchStatus.MISSING:
-            suggestions.append(_gap_for(ranked))
+            gaps.append(_gap_for(ranked))
             continue
 
         if ranked.match.location is ResumeLocation.SKILLS:
             if relocate := _relocate_for(ranked, document):
-                suggestions.append(relocate)
+                actionable.append(relocate)
             continue
 
-        # Present in a bullet already: nothing to do.
+        # Already present in a bullet: nothing to do.
+
+    # Actionable first, then gaps for whatever room is left.
+    suggestions: list[Suggestion] = list(actionable[:limit])
+    suggestions.extend(gaps[: max(0, limit - len(suggestions))])
+    suggestions.sort(key=lambda s: -s.weight)
 
     runlog.write(
         "suggest",
         total=len(suggestions),
+        actionable=len(actionable),
+        gaps_available=len(gaps),
+        rewrites_made=rewrites_made,
         by_action={
             action: sum(1 for s in suggestions if s.action == action)
             for action in {s.action for s in suggestions}

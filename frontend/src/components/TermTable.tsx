@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import type { MatchStatus, RankedTerm } from "../api";
 
 const STATUS_LABEL: Record<MatchStatus, string> = {
@@ -63,9 +63,8 @@ export function TermTable({ terms }: { terms: RankedTerm[] }) {
           </thead>
           <tbody>
             {shown.map((t) => (
-              <>
+              <Fragment key={t.term}>
                 <tr
-                  key={t.term}
                   className="cursor-pointer"
                   onClick={() => setExpanded(expanded === t.term ? null : t.term)}
                 >
@@ -83,7 +82,7 @@ export function TermTable({ terms }: { terms: RankedTerm[] }) {
                   </td>
                 </tr>
                 {expanded === t.term && (
-                  <tr key={`${t.term}-detail`}>
+                  <tr>
                     <td colSpan={7} className="bg-ink-900 text-xs text-ink-400">
                       <div className="tabular-nums">{t.weight_formula}</div>
                       <div className="mt-1">
@@ -96,7 +95,7 @@ export function TermTable({ terms }: { terms: RankedTerm[] }) {
                     </td>
                   </tr>
                 )}
-              </>
+              </Fragment>
             ))}
           </tbody>
         </table>
