@@ -193,3 +193,86 @@ class TestAgainstTheRealCV:
         assert gated.result.ok
         assert gated.tex == source
         assert gated.reverted == []
+
+
+@needs_latex
+class TestBaselineIsCheckedBeforeBlamingEdits:
+    """A master that does not compile made every probe fail, so every edit was
+    reverted for a breakage that was already there. The report read "3 edits
+    were reverted because they broke the build" about edits that had broken
+    nothing.
+    """
+
+    @pytest.fixture
+    def broken(self, source: str) -> str:
+        """The real template with one undefined macro in the body.
+
+        Built from the working fixture rather than hand-rolled, so it still
+        parses into sections, entries and bullets -- a document with no entry
+        has no editable bullets, and would not exercise this at all.
+        """
+        marker = r"\begin{document}"
+        at = source.index(marker) + len(marker)
+        return source[:at] + "\n\\undefinedmacro\n" + source[at:]
+
+    def test_a_broken_master_is_reported_rather_than_the_edits(self, broken):
+        document = parse(broken)
+        bullets = list(document.bullets())
+        assert bullets, "fixture must expose an editable bullet"
+
+        gated = compile_with_gate(
+            broken, [document.edit(bullets[0].id, "a rewritten bullet")]
+        )
+
+        assert gated.baseline_error, "the master's own failure must be identified"
+        assert gated.reverted == [], "no edit should be blamed"
+        assert len(gated.applied) == 1, "edits still apply; only the PDF is lost"
+        assert "a rewritten bullet" in gated.tex
+
+    def test_a_healthy_master_still_isolates_a_bad_edit(self, doc, source):
+        """The blame path must survive: a genuinely bad edit is still caught."""
+        bullets = list(doc.bullets())
+        spans = doc.editable_spans()
+        bad = Edit(
+            start=spans[bullets[0].id].start,
+            end=spans[bullets[0].id].end,
+            new_text="\\undefinedmacro",
+            target_id=bullets[0].id,
+        )
+        gated = compile_with_gate(source, [bad])
+
+        assert not gated.baseline_error
+        assert [e.target_id for e, _ in gated.reverted] == [bullets[0].id]
+
+    def test_the_run_explains_it_and_still_yields_a_tex(self, broken):
+        from aicvtailor.tailor.pipeline import tailor
+
+        document = parse(broken)
+        bullet = next(iter(document.bullets()))
+        result = tailor(
+            document,
+            [
+                {
+                    "target_id": bullet.id,
+                    "term": "x",
+                    "source_bullet_id": bullet.id,
+                    "proposed_text": "a rewritten bullet",
+                }
+            ],
+        )
+
+        assert result.baseline_error
+        assert any("does not compile on its own" in w for w in result.warnings)
+        assert not result.reverted
+        assert "a rewritten bullet" in result.tex
+
+
+@needs_latex
+def test_an_unhelpful_failure_still_reports_the_log():
+    """'no recognisable error message' was unactionable for both of us."""
+    result = compile_tex(
+        "\\documentclass{article}\\begin{document}\\undefinedmacro\\end{document}"
+    )
+    assert not result.ok
+    assert result.error
+    assert "no recognisable error message" not in result.error

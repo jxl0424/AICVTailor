@@ -80,14 +80,28 @@ def _command(engine: str, source: Path, outdir: Path) -> list[str]:
 
 
 def _first_error(log_text: str) -> str:
-    """The first real error plus the source line, if TeX reported one."""
+    """The first real error plus the source line, if TeX reported one.
+
+    When TeX reports nothing recognisable the log itself is the only clue, so
+    the tail is included rather than reporting an unactionable "no recognisable
+    error message" -- which is what a MiKTeX install prompting for packages
+    looks like from here.
+    """
     errors = _ERROR_RE.findall(log_text)
-    if not errors:
-        return "compilation failed with no recognisable error message"
-    message = errors[0].strip()
-    if line := _LINE_RE.search(log_text):
-        return f"{message} (source line {line.group(1)})"
-    return message
+    if errors:
+        message = errors[0].strip()
+        if line := _LINE_RE.search(log_text):
+            return f"{message} (source line {line.group(1)})"
+        return message
+
+    tail = " ".join(log_text.split())[-300:]
+    if tail:
+        return f"compilation failed. End of the engine log: ...{tail}"
+    return (
+        "compilation failed and the engine produced no log at all. On MiKTeX "
+        "this usually means it is waiting to install a missing package: open "
+        "the MiKTeX Console and set package installation to 'Always'."
+    )
 
 
 def compile_tex(source: str, *, engine: str | None = None) -> CompileResult:
@@ -161,6 +175,9 @@ class GatedCompile:
     applied: list[Edit] = field(default_factory=list)
     reverted: list[tuple[Edit, str]] = field(default_factory=list)
     tex: str = ""
+    # Set when the master resume does not compile on its own. Every edit would
+    # then look guilty, and none of them would be.
+    baseline_error: str = ""
 
     @property
     def ok(self) -> bool:
@@ -188,6 +205,19 @@ def compile_with_gate(source: str, edits: list[Edit]) -> GatedCompile:
     result = compile_tex(tex, engine=engine)
     if result.ok:
         return GatedCompile(result=result, applied=list(edits), tex=tex)
+
+    # Before blaming any edit, check the document compiled to begin with.
+    # Without this, a master that does not build makes every probe fail, and
+    # every edit gets reverted for a breakage that was already there.
+    baseline = compile_tex(source, engine=engine)
+    if not baseline.ok:
+        log.warning("the master resume does not compile on its own: %s", baseline.error)
+        return GatedCompile(
+            result=result,
+            applied=list(edits),
+            tex=tex,
+            baseline_error=baseline.error,
+        )
 
     log.warning("tailored .tex failed to compile (%s); isolating the bad edit", result.error)
 

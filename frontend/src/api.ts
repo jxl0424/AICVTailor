@@ -240,6 +240,7 @@ export interface TailorResult {
   tailored_id: number;
   compiled: boolean;
   compile_error: string;
+  baseline_error: string;
   engine: string;
   changes: ChangedSpan[];
   reverted: { target_id: string; reason: string }[];

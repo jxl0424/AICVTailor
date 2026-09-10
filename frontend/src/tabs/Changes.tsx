@@ -20,6 +20,7 @@ export function Changes() {
       tailored_id: detail.id,
       compiled: detail.compiled,
       compile_error: detail.compile_error ?? "",
+      baseline_error: "",
       engine: "",
       changes: detail.diff.changes,
       reverted: [],
@@ -111,9 +112,11 @@ export function Changes() {
               : `stored version · did not compile: ${result.compile_error}`
             : result.compiled
               ? `compiled with ${result.engine} · ${v.pages} page${v.pages === 1 ? "" : "s"}`
-              : v.skipped
-                ? "no LaTeX engine: .tex only"
-                : `compile failed: ${result.compile_error}`}
+              : result.baseline_error
+                ? "your master resume does not compile"
+                : result.engine === ""
+                  ? "no LaTeX engine: .tex only"
+                  : `compile failed: ${result.compile_error}`}
         </span>
         <span className="text-ink-400">
           coverage {result.coverage_before}% → {result.coverage_after}%
@@ -147,6 +150,19 @@ export function Changes() {
           <strong>{v.lost_terms.join(", ")}</strong>. A parser reads the extracted
           text, so these will not count.
         </p>
+      )}
+
+      {result.baseline_error && (
+        <div className="rounded border border-bad/40 bg-bad/5 p-2 text-xs text-bad">
+          <p className="mb-1">
+            <strong>Your master resume does not compile on its own</strong>, before
+            any tailoring. Nothing here is caused by the edits.
+          </p>
+          <p className="font-mono text-[11px]">{result.baseline_error}</p>
+          <p className="mt-1 text-ink-400">
+            The tailored .tex is still downloadable. Fix the master, then re-run.
+          </p>
+        </div>
       )}
 
       {result.reverted.length > 0 && (

@@ -1,5 +1,6 @@
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { HealthBanner } from "./components/HealthBanner";
+import { TailorSessionProvider } from "./TailorSession";
 import { Applications } from "./tabs/Applications";
 import { Changes } from "./tabs/Changes";
 import { Library } from "./tabs/Library";
@@ -41,16 +42,19 @@ export default function App() {
 
       <HealthBanner />
 
-      <main className="flex-1 overflow-auto">
-        <Routes>
+      {/* Above the router, so switching tabs does not unmount the work. */}
+      <TailorSessionProvider>
+        <main className="flex-1 overflow-auto">
+          <Routes>
           <Route path="/" element={<Navigate to="/tailor" replace />} />
-          <Route path="/tailor" element={<Tailor />} />
-          <Route path="/changes" element={<Changes />} />
-          <Route path="/changes/:id" element={<Changes />} />
-          <Route path="/library" element={<Library />} />
-          <Route path="/applications" element={<Applications />} />
-        </Routes>
-      </main>
+            <Route path="/tailor" element={<Tailor />} />
+            <Route path="/changes" element={<Changes />} />
+            <Route path="/changes/:id" element={<Changes />} />
+            <Route path="/library" element={<Library />} />
+            <Route path="/applications" element={<Applications />} />
+          </Routes>
+        </main>
+      </TailorSessionProvider>
     </div>
   );
 }

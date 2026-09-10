@@ -8,31 +8,41 @@ import {
   type MasterResumeRow,
   type SuggestionRow,
 } from "../api";
+import { useTailorSession } from "../TailorSession";
 import { CoverageBar } from "../components/CoverageBar";
 import { SuggestionList } from "../components/SuggestionList";
 import { TermTable } from "../components/TermTable";
 
 export function Tailor() {
+  // Work in progress lives above the router; switching tabs must not lose it.
+  const { session, update } = useTailorSession();
+  const { jdText, jdUrl, masterId, result, suggestions, view, tailorNote, providerNote } =
+    session;
+
+  const setJdText = (v: string) => update({ jdText: v });
+  const setJdUrl = (v: string) => update({ jdUrl: v });
+  const setMasterId = (v: number | undefined) => update({ masterId: v });
+  const setResult = (v: AnalysisResult | null) => update({ result: v });
+  const setSuggestions = (v: SuggestionRow[]) => update({ suggestions: v });
+  const setView = (v: "terms" | "suggestions") => update({ view: v });
+  const setTailorNote = (v: string) => update({ tailorNote: v });
+  const setProviderNote = (v: string) => update({ providerNote: v });
+
+  // Transient: restoring these from a previous visit would be misleading.
   const [masters, setMasters] = useState<MasterResumeRow[]>([]);
-  const [masterId, setMasterId] = useState<number | undefined>();
-  const [jdText, setJdText] = useState("");
-  const [jdUrl, setJdUrl] = useState("");
-  const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [suggestions, setSuggestions] = useState<SuggestionRow[]>([]);
   const [suggesting, setSuggesting] = useState(false);
-  const [providerNote, setProviderNote] = useState<string>("");
-  const [view, setView] = useState<"terms" | "suggestions">("terms");
   const [tailoring, setTailoring] = useState(false);
-  const [tailorNote, setTailorNote] = useState("");
 
   const loadMasters = () =>
     analysisApi
       .masters()
       .then((rows) => {
         setMasters(rows);
-        setMasterId((current) => current ?? rows.find((r) => r.is_active)?.id ?? rows[0]?.id);
+        if (masterId === undefined) {
+          setMasterId(rows.find((r) => r.is_active)?.id ?? rows[0]?.id);
+        }
       })
       .catch(() => undefined);
 
@@ -280,7 +290,9 @@ export function Tailor() {
               <SuggestionList
                 suggestions={suggestions}
                 onChange={(row) =>
-                  setSuggestions((rows) => rows.map((r) => (r.id === row.id ? { ...r, ...row } : r)))
+                  setSuggestions(
+                    suggestions.map((r) => (r.id === row.id ? { ...r, ...row } : r)),
+                  )
                 }
               />
             )}

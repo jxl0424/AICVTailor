@@ -33,6 +33,7 @@ class TailorResult:
     pdf_bytes: bytes | None
     compiled: bool
     compile_error: str
+    baseline_error: str
     engine: str
     changes: list[diff_mod.ChangedSpan]
     reverted: list[dict[str, str]]
@@ -48,6 +49,7 @@ class TailorResult:
             "run_id": self.run_id,
             "compiled": self.compiled,
             "compile_error": self.compile_error,
+            "baseline_error": self.baseline_error,
             "engine": self.engine,
             "changes": [c.as_dict() for c in self.changes],
             "reverted": self.reverted,
@@ -155,6 +157,14 @@ def tailor(
     baseline = compile_tex(document.source)
     gated: GatedCompile = compile_with_gate(document.source, edits)
 
+    if gated.baseline_error:
+        warnings.append(
+            "Your master resume does not compile on its own, before any tailoring: "
+            f"{gated.baseline_error} The edits were applied anyway and the .tex is "
+            "downloadable, but no PDF could be produced. Fix the master first -- "
+            "nothing here is caused by the tailoring."
+        )
+
     reverted = [
         {"target_id": edit.target_id, "reason": reason} for edit, reason in gated.reverted
     ]
@@ -224,6 +234,7 @@ def tailor(
         pdf_bytes=gated.result.pdf_bytes,
         compiled=gated.result.ok,
         compile_error=gated.result.error,
+        baseline_error=gated.baseline_error,
         engine=gated.result.engine,
         changes=changes,
         reverted=reverted,
