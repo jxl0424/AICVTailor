@@ -135,6 +135,16 @@ def tailor(
             )
             continue
 
+        if target_id in intent:
+            # Two accepted suggestions writing the same span would produce
+            # overlapping edits. Keep the first, which is the higher weighted,
+            # and say what was dropped rather than failing the run.
+            warnings.append(
+                f"skipped '{row.get('term')}': another accepted suggestion already "
+                f"rewrites {target_id}, and one span can only be written once."
+            )
+            continue
+
         span = editable[target_id]
         before = span.text(document.source)
         edits.append(document.edit(target_id, proposed))

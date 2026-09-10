@@ -295,41 +295,62 @@ def _reword_for(
     )
 
 
-def _relocate_for(ranked: RankedTerm, document: Document) -> RelocateSuggestion | None:
-    """Promote a buried skill. Deterministic reordering, no model call."""
-    for line in document.skill_lines():
-        matches = [
-            index
-            for index, value in enumerate(line.values)
-            if ranked.canonical.casefold() in value.casefold()
-            or value.casefold() in ranked.canonical.casefold()
-        ]
-        # Already leading the line, or too minor for this posting to care.
-        if not matches or matches[0] == 0:
+def _relocations(
+    skills_terms: Sequence[RankedTerm], document: Document
+) -> list[RelocateSuggestion]:
+    """One suggestion per skills line, promoting every term the posting wants.
+
+    Emitting a separate suggestion per term produced several edits against the
+    same span, and accepting two of them raised OverlappingEdits -- a 500 the
+    moment a posting named two skills from the same line. A skills line is one
+    piece of text, so it gets one edit that promotes all of them, in the
+    posting's own order of importance.
+    """
+    by_line: dict[str, tuple[Any, list[tuple[RankedTerm, int]]]] = {}
+
+    for ranked in skills_terms:  # already sorted by weight, descending
+        for line in document.skill_lines():
+            positions = [
+                index
+                for index, value in enumerate(line.values)
+                if ranked.canonical.casefold() in value.casefold()
+                or value.casefold() in ranked.canonical.casefold()
+            ]
+            if positions:
+                by_line.setdefault(line.id, (line, []))[1].append((ranked, positions[0]))
+                break
+
+    suggestions: list[RelocateSuggestion] = []
+    for line, hits in by_line.values():
+        wanted = [line.values[position] for _, position in hits]
+        # Already leading the line in this order: nothing to move.
+        if list(line.values[: len(wanted)]) == wanted:
             continue
 
-        position = matches[0]
-        reordered = [line.values[position], *[v for i, v in enumerate(line.values) if i != position]]
+        reordered = wanted + [v for v in line.values if v not in wanted]
         original = line.values_span.text(document.source)
         prefix = ": " if original.lstrip().startswith(":") else ""
+        top = hits[0][0]
 
-        return RelocateSuggestion(
-            term=ranked.canonical,
-            category=ranked.term_category,
-            weight=ranked.weight.weight,
-            status=ranked.match.status.value,
-            rationale=(
-                f"Listed {position + 1}{'st' if position == 0 else 'nd' if position == 1 else 'rd' if position == 2 else 'th'}"
-                f" under '{line.label}'. This posting weights it at "
-                f"{ranked.weight.weight:.2f}, so it should lead the line. "
-                "Reordering only; nothing is added or removed."
-            ),
-            source_line_id=line.id,
-            original_text=original,
-            proposed_text=prefix + ", ".join(reordered),
-            target_id=line.id,
+        suggestions.append(
+            RelocateSuggestion(
+                term=", ".join(r.canonical for r, _ in hits),
+                category=top.term_category,
+                weight=top.weight.weight,
+                status=top.match.status.value,
+                rationale=(
+                    f"This posting asks for {', '.join(r.canonical for r, _ in hits)}, "
+                    f"which sit at position{'s' if len(hits) > 1 else ''} "
+                    f"{', '.join(str(p + 1) for _, p in hits)} under '{line.label}'. "
+                    "Reordering only; nothing is added or removed."
+                ),
+                source_line_id=line.id,
+                original_text=original,
+                proposed_text=prefix + ", ".join(reordered),
+                target_id=line.id,
+            )
         )
-    return None
+    return suggestions
 
 
 def _gap_for(ranked: RankedTerm, reason: str = "") -> GapSuggestion:
@@ -373,6 +394,7 @@ def generate(
 
     actionable: list[Suggestion] = []
     gaps: list[Suggestion] = []
+    skills_terms: list[RankedTerm] = []
     rewrites_made = 0
 
     for ranked in sorted(ranked_terms, key=lambda r: -r.weight.weight):
@@ -407,11 +429,12 @@ def generate(
             continue
 
         if ranked.match.location is ResumeLocation.SKILLS:
-            if relocate := _relocate_for(ranked, document):
-                actionable.append(relocate)
+            skills_terms.append(ranked)
             continue
 
         # Already present in a bullet: nothing to do.
+
+    actionable.extend(_relocations(skills_terms, document))
 
     # Actionable first, then gaps for whatever room is left.
     suggestions: list[Suggestion] = list(actionable[:limit])
